@@ -60,7 +60,7 @@ The prize pot must increase exactly once per question, after the answer reveal.
 The redemption round must only include players from the most recent round of eliminations and revive at most one player.
 The host can successfully display and hide a GIF overlay on all player screens.
 
-Made with Floot.
+
 
 # Instruction
 

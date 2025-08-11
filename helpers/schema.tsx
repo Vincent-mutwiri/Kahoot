@@ -33,6 +33,7 @@ export interface Games {
 }
 
 export interface Players {
+  balance: Generated<number>;
   eliminatedRound: number | null;
   gameId: number;
   id: Generated<number>;
