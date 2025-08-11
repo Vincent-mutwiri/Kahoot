@@ -1,0 +1,95 @@
+.container {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-3);
+  padding: var(--spacing-2) var(--spacing-3);
+  border-radius: var(--radius);
+  background-color: var(--surface);
+  border: 1px solid var(--border);
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: all var(--animation-duration-normal) ease;
+  min-height: 2.5rem; /* Match button height */
+}
+
+.statusIndicator {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+}
+
+.icon {
+  flex-shrink: 0;
+}
+
+.statusText {
+  white-space: nowrap;
+}
+
+.lastUpdated {
+  font-size: 0.8125rem;
+  color: var(--muted-foreground);
+  white-space: nowrap;
+}
+
+/* Status-specific colors */
+.connected {
+  color: var(--success);
+  border-color: color-mix(in srgb, var(--success) 25%, transparent);
+  background-color: color-mix(in srgb, var(--success) 10%, transparent);
+}
+
+.connecting {
+  color: var(--info);
+  border-color: color-mix(in srgb, var(--info) 25%, transparent);
+  background-color: color-mix(in srgb, var(--info) 10%, transparent);
+}
+
+.disconnected {
+  color: var(--warning-foreground);
+  border-color: color-mix(in srgb, var(--warning) 30%, transparent);
+  background-color: color-mix(in srgb, var(--warning) 15%, transparent);
+}
+
+.error {
+  color: var(--error);
+  border-color: color-mix(in srgb, var(--error) 25%, transparent);
+  background-color: color-mix(in srgb, var(--error) 10%, transparent);
+}
+
+/* Animations */
+.pulsing {
+  animation: pulse-icon 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse-icon {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.1);
+    opacity: 0.7;
+  }
+}
+
+.reconnectButton {
+  height: 1.75rem; /* Slightly smaller than default sm button */
+  padding: 0 var(--spacing-2);
+  font-size: 0.8125rem;
+  margin-left: auto; /* Push to the right */
+}
+
+.disconnected .reconnectButton {
+  color: var(--warning-foreground);
+}
+.disconnected .reconnectButton:hover {
+  background-color: color-mix(in srgb, var(--warning) 25%, transparent);
+}
+
+.error .reconnectButton {
+  color: var(--error);
+}
+.error .reconnectButton:hover {
+  background-color: color-mix(in srgb, var(--error) 25%, transparent);
+}

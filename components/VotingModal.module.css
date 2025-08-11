@@ -1,0 +1,192 @@
+.dialogContent {
+  max-width: 480px;
+  background-color: var(--surface);
+  color: var(--surface-foreground);
+  font-family: var(--font-family-base);
+}
+
+.timerContainer {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-3);
+  margin: var(--spacing-4) 0;
+}
+
+.timerProgress {
+  flex-grow: 1;
+  height: 1rem;
+}
+
+.timerProgress > div {
+  background-color: var(--secondary);
+  transition: transform var(--animation-duration-normal) linear;
+}
+
+.timerText {
+  font-family: var(--font-family-heading);
+  font-size: 1.5rem;
+  color: var(--secondary);
+  min-width: 40px;
+  text-align: right;
+}
+
+.candidatesList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-3);
+  max-height: 40vh;
+  overflow-y: auto;
+  padding-right: var(--spacing-2);
+}
+
+.candidateItem {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: var(--spacing-3);
+  padding: var(--spacing-3);
+  background-color: var(--muted);
+  border-radius: var(--radius);
+  transition: background-color var(--animation-duration-fast) ease;
+}
+
+.candidateItem.votedFor {
+  background-color: color-mix(in srgb, var(--primary), transparent 85%);
+  box-shadow: inset 0 0 0 2px var(--primary);
+}
+
+.candidateInfo {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-1);
+  overflow: hidden;
+}
+
+.candidateName {
+  font-weight: 500;
+  color: var(--foreground);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.voteBarContainer {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+}
+
+.voteBar {
+  height: 0.5rem;
+  flex-grow: 1;
+}
+
+.voteBar > div {
+  background-color: var(--primary);
+}
+
+.voteCount {
+  font-size: 0.75rem;
+  color: var(--muted-foreground);
+  white-space: nowrap;
+}
+
+.voteButton {
+  gap: var(--spacing-1);
+}
+
+.voteButton svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+.errorState {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-2);
+  color: var(--error);
+  padding: var(--spacing-8);
+  text-align: center;
+}
+
+/* Skeleton Styles */
+.skeletonContainer {
+  padding: var(--spacing-4) 0;
+}
+
+/* Results Styles */
+.resultsContainer {
+  text-align: center;
+}
+
+.redeemedAnnouncement {
+  margin: var(--spacing-6) 0;
+  font-size: 1.25rem;
+}
+
+.redeemedIcon {
+  width: 3rem;
+  height: 3rem;
+  color: var(--accent);
+  margin: 0 auto var(--spacing-2);
+}
+
+.noRedeemedIcon {
+  width: 3rem;
+  height: 3rem;
+  color: var(--muted-foreground);
+  margin: 0 auto var(--spacing-2);
+}
+
+.redeemedName {
+  font-family: var(--font-family-heading);
+  color: var(--primary);
+  font-size: 1.75rem;
+}
+
+.finalTallies {
+  margin-top: var(--spacing-8);
+  text-align: left;
+}
+
+.finalTalliesTitle {
+  font-family: var(--font-family-heading);
+  font-size: 1.1rem;
+  color: var(--muted-foreground);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: var(--spacing-3);
+  border-bottom: 1px solid var(--border);
+  padding-bottom: var(--spacing-2);
+}
+
+.tallyItem {
+  display: flex;
+  align-items: baseline;
+  gap: var(--spacing-3);
+  padding: var(--spacing-2) 0;
+  font-size: 1rem;
+}
+
+.tallyRank {
+  font-family: var(--font-family-monospace);
+  color: var(--muted-foreground);
+  min-width: 2ch;
+}
+
+.tallyName {
+  flex-grow: 1;
+  font-weight: 500;
+}
+
+.tallyVotes {
+  font-weight: 500;
+  color: var(--primary);
+}
+
+.resultsFooter {
+  justify-content: center;
+  color: var(--muted-foreground);
+  font-style: italic;
+}

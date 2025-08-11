@@ -1,0 +1,206 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  background-color: var(--background);
+  color: var(--foreground);
+  padding: var(--spacing-8);
+  font-family: var(--font-family-base);
+  overflow: hidden;
+  position: relative;
+}
+
+.container::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-image: radial-gradient(circle at top left, color-mix(in srgb, var(--primary) 10%, transparent) 0%, transparent 30%),
+                    radial-gradient(circle at bottom right, color-mix(in srgb, var(--secondary) 10%, transparent) 0%, transparent 30%);
+  opacity: 0.5;
+  z-index: 0;
+}
+
+.hero {
+  text-align: center;
+  margin-bottom: var(--spacing-8);
+  z-index: var(--z-content);
+}
+
+.hostAccess {
+  background: color-mix(in srgb, var(--surface) 90%, transparent);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-6);
+  margin-bottom: var(--spacing-8);
+  max-width: 500px;
+  width: 100%;
+  z-index: var(--z-content);
+  backdrop-filter: blur(10px);
+}
+
+.hostAccessTitle {
+  font-family: var(--font-family-heading);
+  font-size: 1.5rem;
+  color: var(--primary);
+  margin: 0 0 var(--spacing-4) 0;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+}
+
+.hostAccessForm {
+  display: flex;
+  gap: var(--spacing-3);
+  align-items: center;
+}
+
+.hostAccessForm .codeInput {
+  flex: 1;
+}
+
+.title {
+  font-family: var(--font-family-heading);
+  font-size: 6rem;
+  font-weight: 400;
+  letter-spacing: 0.1em;
+  color: var(--primary);
+  text-shadow: 0 0 10px color-mix(in srgb, var(--primary) 30%, transparent),
+               0 0 20px color-mix(in srgb, var(--primary) 20%, transparent);
+  margin: 0;
+  line-height: 1;
+}
+
+.subtitle {
+  font-size: 1.25rem;
+  color: var(--muted-foreground);
+  margin-top: var(--spacing-4);
+  max-width: 600px;
+}
+
+.actionsContainer {
+  display: flex;
+  gap: var(--spacing-8);
+  width: 100%;
+  max-width: 1000px;
+  z-index: var(--z-content);
+  background: color-mix(in srgb, var(--surface) 80%, transparent);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-8);
+  box-shadow: var(--shadow-lg);
+  backdrop-filter: blur(10px);
+}
+
+.actionCard {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.cardTitle {
+  font-family: var(--font-family-heading);
+  font-size: 2.5rem;
+  font-weight: 400;
+  color: var(--foreground);
+  margin: 0 0 var(--spacing-2) 0;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-3);
+}
+
+.cardIcon {
+  color: var(--secondary);
+  width: 2.5rem;
+  height: 2.5rem;
+}
+
+.cardDescription {
+  color: var(--muted-foreground);
+  margin: 0 0 var(--spacing-6) 0;
+  min-height: 40px;
+}
+
+.separator {
+  align-self: stretch;
+  height: auto;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-4);
+  flex-grow: 1;
+}
+
+.form :global(.formItem) {
+  margin-bottom: 0;
+}
+
+.formButton {
+  margin-top: auto;
+  padding-top: var(--spacing-4);
+}
+
+.prizeInputs {
+  display: flex;
+  gap: var(--spacing-4);
+}
+
+.prizeInputs > div {
+  flex: 1;
+}
+
+.codeInput {
+  font-family: var(--font-family-monospace);
+  letter-spacing: 0.2em;
+  text-align: center;
+  font-size: 1.2rem;
+  font-weight: 700;
+}
+
+@media (max-width: 900px) {
+  .actionsContainer {
+    flex-direction: column;
+    max-width: 500px;
+  }
+  .separator {
+    width: 100%;
+    height: 1px;
+  }
+  .title {
+    font-size: 4rem;
+  }
+  .subtitle {
+    font-size: 1rem;
+  }
+  .hostAccessForm {
+    flex-direction: column;
+    gap: var(--spacing-3);
+  }
+  .hostAccessForm .codeInput {
+    width: 100%;
+  }
+}
+
+@media (max-width: 600px) {
+  .container {
+    padding: var(--spacing-4);
+  }
+  .hero {
+    margin-bottom: var(--spacing-8);
+  }
+  .title {
+    font-size: 3rem;
+  }
+  .actionsContainer {
+    padding: var(--spacing-4);
+  }
+  .cardTitle {
+    font-size: 2rem;
+  }
+}

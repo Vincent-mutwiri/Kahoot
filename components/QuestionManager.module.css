@@ -1,0 +1,208 @@
+.container {
+  background-color: var(--surface);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-6);
+  box-shadow: var(--shadow-md);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-4);
+}
+
+.managerHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-2);
+}
+
+.managerTitle {
+  font-family: var(--font-family-heading);
+  font-size: 1.75rem;
+  color: var(--foreground);
+  margin: 0;
+}
+
+.questionsList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-4);
+  max-height: 60vh;
+  overflow-y: auto;
+  padding-right: var(--spacing-2);
+}
+
+/* Custom scrollbar for the list */
+.questionsList::-webkit-scrollbar {
+  width: 8px;
+}
+.questionsList::-webkit-scrollbar-track {
+  background: var(--muted);
+  border-radius: var(--radius-full);
+}
+.questionsList::-webkit-scrollbar-thumb {
+  background-color: var(--primary);
+  border-radius: var(--radius-full);
+  border: 2px solid var(--muted);
+}
+
+.questionItem {
+  background-color: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: var(--spacing-4);
+  transition: box-shadow var(--animation-duration-fast) ease;
+}
+
+.questionItem:hover {
+  box-shadow: 0 0 0 1px var(--primary);
+}
+
+.questionHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--spacing-4);
+  margin-bottom: var(--spacing-4);
+}
+
+.questionTitle {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--spacing-3);
+}
+
+.questionTitle p {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 500;
+  color: var(--foreground);
+  line-height: 1.5;
+}
+
+.questionIndex {
+  font-family: var(--font-family-heading);
+  font-size: 1.25rem;
+  color: var(--primary);
+  flex-shrink: 0;
+}
+
+.questionActions {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-1);
+  flex-shrink: 0;
+}
+
+.deleteIcon {
+  color: var(--muted-foreground);
+  transition: color var(--animation-duration-fast) ease;
+}
+
+.deleteIcon:hover {
+  color: var(--error);
+}
+
+.optionsGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--spacing-3);
+}
+
+.option {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  background-color: color-mix(in srgb, var(--muted) 50%, transparent);
+  padding: var(--spacing-2) var(--spacing-3);
+  border-radius: var(--radius-sm);
+  font-size: 0.875rem;
+  color: var(--muted-foreground);
+  border-left: 3px solid transparent;
+  transition: all var(--animation-duration-fast) ease;
+}
+
+.optionKey {
+  font-weight: 700;
+}
+
+.correctOption {
+  background-color: color-mix(in srgb, var(--success) 15%, transparent);
+  color: var(--success);
+  border-left-color: var(--success);
+}
+
+.correctIcon {
+  color: var(--success);
+}
+
+.incorrectIcon {
+  color: var(--muted-foreground);
+  opacity: 0.5;
+}
+
+/* States */
+.emptyState,
+.errorState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: var(--spacing-12) var(--spacing-6);
+  color: var(--muted-foreground);
+  border: 2px dashed var(--border);
+  border-radius: var(--radius-md);
+  margin-top: var(--spacing-4);
+}
+
+.emptyState h3,
+.errorState h3 {
+  font-family: var(--font-family-heading);
+  font-size: 1.5rem;
+  color: var(--foreground);
+  margin: var(--spacing-4) 0 var(--spacing-2);
+}
+
+.emptyState p,
+.errorState p {
+  margin: 0 0 var(--spacing-6);
+  max-width: 40ch;
+}
+
+/* Skeleton Loader */
+.skeletonContainer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-4);
+}
+
+.skeletonItem {
+  background-color: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: var(--spacing-4);
+}
+
+.skeletonHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-4);
+}
+
+.skeletonOptions {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--spacing-3);
+}
+
+/* Dialog content */
+.dialogQuestionText {
+  background-color: var(--muted);
+  padding: var(--spacing-3);
+  border-radius: var(--radius-sm);
+  font-style: italic;
+  color: var(--muted-foreground);
+  border-left: 3px solid var(--border);
+  margin: var(--spacing-4) 0;
+}
