@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet';
 import { usePlayerConnection } from '../helpers/usePlayerConnection';
+import { usePlayerHideMediaMutation } from '../helpers/playerQueries';
 import { VotingModal } from '../components/VotingModal';
 import { GamePageSkeleton } from '../components/GamePageSkeleton';
 import { LobbyView } from '../components/LobbyView';
@@ -10,6 +11,8 @@ import { EliminatedView } from '../components/EliminatedView';
 import { WinnerView } from '../components/WinnerView';
 import { JoinGamePrompt } from '../components/JoinGamePrompt';
 import { ConnectionStatus } from '../components/ConnectionStatus';
+import { MediaOverlay } from '../components/MediaOverlay';
+import { SoundPlayer } from '../components/SoundPlayer';
 import styles from './game.$gameCode.module.css';
 
 const GamePage: React.FC = () => {
@@ -18,6 +21,7 @@ const GamePage: React.FC = () => {
   const [username, setUsername] = useState<string | null>(null);
   const [isVotingModalOpen, setIsVotingModalOpen] = useState(false);
   const [activeVotingRoundId, setActiveVotingRoundId] = useState<number | null>(null);
+  const hideMediaMutation = usePlayerHideMediaMutation();
 
   useEffect(() => {
     if (!gameCode) {
@@ -44,6 +48,12 @@ const GamePage: React.FC = () => {
   const handleJoin = (newUsername: string) => {
     localStorage.setItem(`lps_username_${gameCode!}`, newUsername);
     setUsername(newUsername);
+  };
+
+  const handleHideMedia = () => {
+    if (gameCode) {
+      hideMediaMutation.mutate({ gameCode });
+    }
   };
 
   const getErrorMessage = (error: Error | null): { title: string; message: string; suggestion: string } | null => {
@@ -202,6 +212,9 @@ const GamePage: React.FC = () => {
         )}
         {renderContent()}
         
+        {data && <MediaOverlay mediaUrl={data.game.mediaUrl} onClose={handleHideMedia} />}
+        {data && <SoundPlayer soundId={data.game.soundId} gameCode={gameCode!} />}
+
         {/* Voting Modal Overlay */}
         {data && activeVotingRoundId && (
           <VotingModal

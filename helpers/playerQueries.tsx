@@ -1,6 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { postPlayerAnswer, InputType as AnswerInput, OutputType as AnswerOutput } from "../endpoints/player/answer_POST.schema";
 import { getPlayerState, InputType as PlayerStateInput, OutputType as PlayerStateOutput } from "../endpoints/player/state_GET.schema";
+import { postGameClearSound, InputType as ClearSoundInput } from "../endpoints/game/clear-sound_POST.schema";
+import { postPlayerHideMedia, InputType as PlayerHideMediaInput } from "../endpoints/game/player-hide-media_POST.schema";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 
@@ -68,5 +70,17 @@ export const useSubmitAnswer = () => {
         navigate(`/game/${variables.gameCode}/eliminated`);
       }
     },
+  });
+};
+
+export const useClearSoundMutation = () => {
+  return useMutation({
+    mutationFn: (vars: ClearSoundInput) => postGameClearSound(vars),
+  });
+};
+
+export const usePlayerHideMediaMutation = () => {
+  return useMutation({
+    mutationFn: (vars: PlayerHideMediaInput) => postPlayerHideMedia(vars),
   });
 };

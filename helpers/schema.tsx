@@ -28,6 +28,8 @@ export interface Games {
   prizePotIncrement: Generated<number>;
   status: Generated<GameStatus>;
   updatedAt: Generated<Timestamp | null>;
+  mediaUrl: string | null;
+  soundId: string | null;
 }
 
 export interface Players {

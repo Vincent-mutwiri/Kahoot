@@ -21,10 +21,13 @@ export async function handle(request: Request): Promise<Response> {
       return new Response(superjson.stringify({ error: "Only the host can play sounds." }), { status: 403 });
     }
 
-    // In a real-time system, this would broadcast the soundId to all clients.
-    // For now, we simulate success.
-    console.log(`[Game ${gameCode}] Host triggered play sound: ${soundId}`);
-    const response: OutputType = { success: true, message: "Play sound event triggered." };
+    await db
+      .updateTable('games')
+      .set({ soundId: soundId, mediaUrl: null })
+      .where('id', '=', game.id)
+      .execute();
+
+    const response: OutputType = { success: true, message: "Sound will be played shortly." };
     return new Response(superjson.stringify(response));
   } catch (error) {
     console.error("Error playing sound:", error);
