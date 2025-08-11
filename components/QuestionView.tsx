@@ -22,10 +22,11 @@ type PublicQuestion = {
 
 interface QuestionViewProps {
   game: Selectable<Games>;
-  player: Selectable<Players>;
+  player?: Selectable<Players>;
   players: Pick<Selectable<Players>, 'id' | 'username' | 'status'>[];
   currentQuestion: PublicQuestion;
   questionStartTimeMs: number | null;
+  isSpectator?: boolean;
 }
 
 const ANSWER_OPTIONS = ['A', 'B', 'C', 'D'] as const;
@@ -38,7 +39,8 @@ export const QuestionView: React.FC<QuestionViewProps> = ({
   player, 
   players, 
   currentQuestion, 
-  questionStartTimeMs 
+  questionStartTimeMs, 
+  isSpectator = false 
 }) => {
   const [selectedAnswer, setSelectedAnswer] = useState<AnswerOption | null>(null);
   const [isLocked, setIsLocked] = useState(false);
@@ -61,24 +63,26 @@ export const QuestionView: React.FC<QuestionViewProps> = ({
     // Lock UI when timer expires and show feedback
     if (isExpired && !isLocked) {
       setIsLocked(true);
-      if (!selectedAnswer) {
+      if (!selectedAnswer && !isSpectator) {
         toast.warning("Time's up!", {
           description: "You didn't submit an answer in time.",
           duration: 3000,
         });
       }
     }
-  }, [isExpired, isLocked, selectedAnswer]);
+  }, [isExpired, isLocked, selectedAnswer, isSpectator]);
 
   const handleAnswerSelect = (answer: AnswerOption) => {
-    if (isLocked || submitAnswerMutation.isPending || isExpired) return;
+    if (isLocked || submitAnswerMutation.isPending || isExpired || isSpectator) return;
     setSelectedAnswer(answer);
     setIsLocked(true);
-    submitAnswerMutation.mutate({
-      gameCode: game.code,
-      username: player.username,
-      answer: answer,
-    });
+    if (player) {
+      submitAnswerMutation.mutate({
+        gameCode: game.code,
+        username: player.username,
+        answer: answer,
+      });
+    }
   };
 
   const getTimerColor = () => {
@@ -104,9 +108,9 @@ export const QuestionView: React.FC<QuestionViewProps> = ({
           {ANSWER_OPTIONS.map(opt => (
             <Button
               key={opt}
-              className={`${styles.optionButton} ${selectedAnswer === opt ? styles.selected : ''} ${isLocked ? styles.locked : ''}`}
+              className={`${styles.optionButton} ${selectedAnswer === opt ? styles.selected : ''} ${isLocked || isSpectator ? styles.locked : ''}`}
               onClick={() => handleAnswerSelect(opt)}
-              disabled={isLocked || isExpired}
+              disabled={isLocked || isExpired || isSpectator}
             >
               <span className={styles.optionLabel}>{opt}</span>
               <span className={styles.optionText}>{currentQuestion[`option${opt}` as keyof PublicQuestion]}</span>
