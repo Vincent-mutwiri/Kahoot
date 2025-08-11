@@ -1,15 +1,28 @@
-import {type GeneratedAlways, Kysely, CamelCasePlugin} from 'kysely'
-import {PostgresJSDialect} from 'kysely-postgres-js'
-import {DB} from './schema'
-import postgres from 'postgres'
+import mongoose from 'mongoose';
+import { Game, Player, Question, RedemptionRound, Vote } from '../lib/models';
 
-export const db = new Kysely<DB>({
-plugins: [new CamelCasePlugin()],
-dialect: new PostgresJSDialect({
-postgres: postgres(process.env.FLOOT_DATABASE_URL, {
-prepare: false,
-idle_timeout: 10,
-max: 3,
-}),
-}),
-})
+// Export all models
+export { Game, Player, Question, RedemptionRound, Vote };
+
+// Export the mongoose connection
+export const connectToDatabase = async () => {
+  if (!process.env.MONGODB_URI) {
+    throw new Error('MONGODB_URI is not defined in environment variables');
+  }
+
+  if (mongoose.connection.readyState >= 1) {
+    return mongoose.connection;
+  }
+
+  try {
+    await mongoose.connect(process.env.MONGODB_URI);
+    console.log('Connected to MongoDB');
+    return mongoose.connection;
+  } catch (error) {
+    console.error('MongoDB connection error:', error);
+    throw error;
+  }
+};
+
+// Export mongoose for direct access if needed
+export { mongoose };
