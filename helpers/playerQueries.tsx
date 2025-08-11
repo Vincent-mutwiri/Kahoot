@@ -1,86 +1,137 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { postPlayerAnswer, InputType as AnswerInput, OutputType as AnswerOutput } from "../endpoints/player/answer_POST.schema";
-import { getPlayerState, InputType as PlayerStateInput, OutputType as PlayerStateOutput } from "../endpoints/player/state_GET.schema";
-import { postGameClearSound, InputType as ClearSoundInput } from "../endpoints/game/clear-sound_POST.schema";
-import { postPlayerHideMedia, InputType as PlayerHideMediaInput } from "../endpoints/game/player-hide-media_POST.schema";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
+import superjson from 'superjson';
+
+// API call functions
+const apiPost = async <T,>(endpoint: string, data: any): Promise<T> => {
+  const response = await fetch(`/_api/${endpoint}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: superjson.stringify(data),
+  });
+  
+  if (!response.ok) {
+    const error = await response.text().catch(() => 'Unknown error');
+    throw new Error(error);
+  }
+  
+  return superjson.parse(await response.text());
+};
+
+const apiGet = async <T,>(endpoint: string, params: Record<string, string>): Promise<T> => {
+  const url = new URL(`/_api/${endpoint}`, window.location.origin);
+  Object.entries(params).forEach(([key, value]) => {
+    url.searchParams.append(key, value);
+  });
+  
+  const response = await fetch(url.toString());
+  
+  if (!response.ok) {
+    const error = await response.text().catch(() => 'Unknown error');
+    throw new Error(error);
+  }
+  
+  return superjson.parse(await response.text());
+};
+
+// Types
+type AnswerInput = {
+  gameCode: string;
+  username: string;
+  answer: 'A' | 'B' | 'C' | 'D';
+};
+
+type AnswerOutput = {
+  status: string;
+  message: string;
+};
+
+type PlayerStateInput = {
+  gameCode: string;
+  username: string;
+};
+
+type PlayerStateOutput = {
+  // Define based on your actual state structure
+  [key: string]: any;
+};
+
+type ClearSoundInput = {
+  gameCode: string;
+};
+
+type PlayerHideMediaInput = {
+  gameCode: string;
+  username: string;
+};
+
+// API functions
+export const postPlayerAnswer = (data: AnswerInput): Promise<AnswerOutput> => 
+  apiPost<AnswerOutput>('player/answer', data);
+
+export const getPlayerState = (params: PlayerStateInput): Promise<PlayerStateOutput> => 
+  apiGet<PlayerStateOutput>('player/state', params);
+
+export const postGameClearSound = (data: ClearSoundInput): Promise<{ success: boolean }> => 
+  apiPost<{ success: boolean }>('game/clear-sound', data);
+
+export const postPlayerHideMedia = (data: PlayerHideMediaInput): Promise<{ success: boolean }> => 
+  apiPost<{ success: boolean }>('game/player-hide-media', data);
 
 export const PLAYER_STATE_QUERY_KEY = 'playerState';
 
-/**
- * Query to fetch the game state for a specific player.
- * Polls every 2 seconds to keep the UI up-to-date with real-time changes.
- * @param params - Contains the gameCode and username.
- * @param options - React Query options.
- */
-export const usePlayerState = (
-  params: PlayerStateInput,
-  options?: { enabled?: boolean }
-) => {
+export const usePlayerStateQuery = (gameCode: string, username: string, enabled: boolean) => {
   return useQuery<PlayerStateOutput, Error>({
-    queryKey: [PLAYER_STATE_QUERY_KEY, params.gameCode, params.username],
-    queryFn: () => getPlayerState(params),
-    enabled: !!params.gameCode && !!params.username && (options?.enabled ?? true),
-    refetchInterval: 2000, // Poll for updates every 2 seconds
+    queryKey: [PLAYER_STATE_QUERY_KEY, gameCode, username],
+    queryFn: () => getPlayerState({ gameCode, username }),
+    enabled,
   });
 };
 
-/**
- * Mutation for a player to submit an answer with immediate feedback and routing.
- */
-export const useSubmitAnswer = () => {
+export const useSubmitAnswerMutation = () => {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
-  
+
   return useMutation<AnswerOutput, Error, AnswerInput>({
     mutationFn: postPlayerAnswer,
     onSuccess: (data, variables) => {
-      // Invalidate the player state query to immediately reflect the result of the answer.
-      queryClient.invalidateQueries({ 
-        queryKey: [PLAYER_STATE_QUERY_KEY, variables.gameCode, variables.username] 
+      queryClient.invalidateQueries({
+        queryKey: [PLAYER_STATE_QUERY_KEY, variables.gameCode, variables.username]
       });
-
-      // Provide immediate feedback based on elimination status
-      if (data.status === 'eliminated') {
-        toast.error("You've been eliminated!", {
-          description: data.message,
-          duration: 4000,
-        });
-        
-        // Route immediately to eliminated view without waiting for polling
-        navigate(`/game/${variables.gameCode}/eliminated`);
-      } else if (data.status === 'active') {
-        toast.success("Answer submitted!", {
-          description: "Waiting for other players...",
-          duration: 2000,
-        });
-      }
+      toast.success(data.message || 'Answer submitted successfully!');
     },
-    onError: (error, variables) => {
-      // Enhanced error handling with clearer feedback
-      const errorMessage = error.message || "Failed to submit answer";
-      toast.error("Submission failed", {
-        description: errorMessage,
-        duration: 4000,
-      });
-      
-      // If the error indicates elimination (e.g., time's up), route to eliminated view
-      if (errorMessage.includes("eliminated") || errorMessage.includes("Time's up")) {
-        navigate(`/game/${variables.gameCode}/eliminated`);
+    onError: (error) => {
+      toast.error(error.message || 'An error occurred.');
+      if (error.message.includes('Game not found')) {
+        navigate('/');
       }
     },
   });
 };
 
 export const useClearSoundMutation = () => {
-  return useMutation({
-    mutationFn: (vars: ClearSoundInput) => postGameClearSound(vars),
+  return useMutation<{ success: boolean }, Error, ClearSoundInput>({
+    mutationFn: postGameClearSound,
+    onSuccess: () => {
+      toast.success('Sound cleared for all players.');
+    },
+    onError: (error) => {
+      toast.error(error.message || 'Failed to clear sound.');
+    },
   });
 };
 
 export const usePlayerHideMediaMutation = () => {
-  return useMutation({
-    mutationFn: (vars: PlayerHideMediaInput) => postPlayerHideMedia(vars),
+  return useMutation<{ success: boolean }, Error, PlayerHideMediaInput>({
+    mutationFn: postPlayerHideMedia,
+    onSuccess: () => {
+      console.log('Player media hidden successfully');
+    },
+    onError: (error) => {
+      toast.error(error.message || 'Failed to hide media.');
+    },
   });
 };

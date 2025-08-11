@@ -1,17 +1,13 @@
-import { db } from "../../helpers/db";
+import dbConnect from "../../lib/db/connect";
+import { RedemptionRound } from "../../lib/models/RedemptionRound";
+import { Player } from "../../lib/models/Player";
+import { Vote } from "../../lib/models/Vote";
 import { schema, OutputType } from "./cast_POST.schema";
 import superjson from 'superjson';
-import { Transaction } from "kysely";
-import { DB } from "../../helpers/schema";
 
-async function castVote(trx: Transaction<DB>, roundId: number, voterPlayerId: number, votedForPlayerId: number): Promise<OutputType> {
+async function castVote(roundId: number, voterPlayerId: number, votedForPlayerId: number): Promise<OutputType> {
   // 1. Validate the redemption round
-  const round = await trx
-    .selectFrom('redemptionRounds')
-    .selectAll()
-    .where('id', '=', roundId)
-    .forUpdate()
-    .executeTakeFirst();
+  const round = await RedemptionRound.findById(roundId);
 
   if (!round) {
     throw new Error("Voting round not found.");
@@ -24,12 +20,10 @@ async function castVote(trx: Transaction<DB>, roundId: number, voterPlayerId: nu
   }
 
   // 2. Validate the voter
-  const voter = await trx
-    .selectFrom('players')
-    .selectAll()
-    .where('id', '=', voterPlayerId)
-    .where('gameId', '=', round.gameId)
-    .executeTakeFirst();
+  const voter = await Player.findOne({
+    _id: voterPlayerId,
+    gameId: round.gameId,
+  });
 
   if (!voter) {
     throw new Error("Voter not found in this game.");
@@ -39,12 +33,10 @@ async function castVote(trx: Transaction<DB>, roundId: number, voterPlayerId: nu
   }
 
   // 3. Validate the candidate (voted for player)
-  const candidate = await trx
-    .selectFrom('players')
-    .selectAll()
-    .where('id', '=', votedForPlayerId)
-    .where('gameId', '=', round.gameId)
-    .executeTakeFirst();
+  const candidate = await Player.findOne({
+    _id: votedForPlayerId,
+    gameId: round.gameId,
+  });
 
   if (!candidate) {
     throw new Error("Candidate player not found in this game.");
@@ -54,28 +46,24 @@ async function castVote(trx: Transaction<DB>, roundId: number, voterPlayerId: nu
   }
 
   // 4. Prevent double voting
-  const existingVote = await trx
-    .selectFrom('votes')
-    .where('redemptionRoundId', '=', roundId)
-    .where('voterPlayerId', '=', voterPlayerId)
-    .select('id')
-    .executeTakeFirst();
+  const existingVote = await Vote.findOne({
+    redemptionRoundId: roundId,
+    voterPlayerId: voterPlayerId,
+  });
 
   if (existingVote) {
     throw new Error("You have already voted in this round.");
   }
 
   // 5. Insert the vote
-  await trx
-    .insertInto('votes')
-    .values({
-      gameId: round.gameId,
-      questionIndex: round.questionIndex,
-      redemptionRoundId: roundId,
-      voterPlayerId: voterPlayerId,
-      votedForPlayerId: votedForPlayerId,
-    })
-    .execute();
+  const newVote = new Vote({
+    gameId: round.gameId,
+    questionIndex: round.questionIndex,
+    redemptionRoundId: roundId,
+    voterPlayerId: voterPlayerId,
+    votedForPlayerId: votedForPlayerId,
+  });
+  await newVote.save();
 
   console.log(`Player ${voterPlayerId} voted for ${votedForPlayerId} in round ${roundId}`);
 
@@ -84,12 +72,11 @@ async function castVote(trx: Transaction<DB>, roundId: number, voterPlayerId: nu
 
 export async function handle(request: Request): Promise<Response> {
   try {
+    await dbConnect();
     const json = superjson.parse(await request.text());
     const { roundId, voterPlayerId, votedForPlayerId } = schema.parse(json);
 
-    const result = await db.transaction().execute((trx) =>
-      castVote(trx, roundId, voterPlayerId, votedForPlayerId)
-    );
+    const result = await castVote(roundId, voterPlayerId, votedForPlayerId);
 
     return new Response(superjson.stringify(result satisfies OutputType), {
       headers: { "Content-Type": "application/json" },

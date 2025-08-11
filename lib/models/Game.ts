@@ -18,6 +18,8 @@ const gameSchema = new mongoose.Schema({
   maxPlayers: { type: Number, default: 100 },
   gameDurationMinutes: { type: Number, default: 60 },
   roundDurationSeconds: { type: Number, default: 300 },
+  mediaUrl: { type: String, default: null },
+  soundId: { type: String, default: null },
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now }
 });

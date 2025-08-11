@@ -1,10 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
-import { usePlayerState } from './playerQueries';
+import { usePlayerStateQuery } from './playerQueries';
 
 type ConnectionStatusType = 'connected' | 'connecting' | 'disconnected' | 'error';
 
 interface UsePlayerConnectionReturn {
-  data: ReturnType<typeof usePlayerState>['data'];
+  data: ReturnType<typeof usePlayerStateQuery>['data'];
   isFetching: boolean;
   error: Error | null;
   connectionStatus: ConnectionStatusType;
@@ -25,9 +25,11 @@ export const usePlayerConnection = (
   const consecutiveErrorsRef = useRef(0);
   const lastSuccessRef = useRef<Date | undefined>(undefined);
 
-  const query = usePlayerState(params, {
-    enabled: options?.enabled,
-  });
+  const query = usePlayerStateQuery(
+    params.gameCode, 
+    params.username, 
+    options?.enabled ?? true
+  );
 
   const { data, isFetching, error, refetch } = query;
 

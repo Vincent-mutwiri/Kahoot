@@ -1,19 +1,15 @@
-import { db } from "../../helpers/db";
+import dbConnect from "../../lib/db/connect";
+import { Game } from "../../lib/models/Game";
+import { Player } from "../../lib/models/Player";
+import { Question } from "../../lib/models/Question";
 import { schema, OutputType } from "./answer_POST.schema";
 import superjson from 'superjson';
-import { Transaction } from "kysely";
-import { DB } from "../../helpers/schema";
 
 const QUESTION_TIME_LIMIT_MS = 30 * 1000; // 30 seconds
 
-async function handleAnswerSubmission(trx: Transaction<DB>, gameCode: string, username: string, answer: string): Promise<OutputType> {
-  // 1. Find the game and player with proper locking
-  const game = await trx
-    .selectFrom('games')
-    .where('code', '=', gameCode)
-    .selectAll()
-    .forUpdate()
-    .executeTakeFirst();
+async function handleAnswerSubmission(gameCode: string, username: string, answer: string): Promise<OutputType> {
+  // 1. Find the game and player
+  const game = await Game.findOne({ code: gameCode });
 
   if (!game) {
     throw new Error("Game not found.");
@@ -25,13 +21,10 @@ async function handleAnswerSubmission(trx: Transaction<DB>, gameCode: string, us
     throw new Error("There is no active question to answer.");
   }
 
-  const player = await trx
-    .selectFrom('players')
-    .where('gameId', '=', game.id)
-    .where('username', '=', username)
-    .selectAll()
-    .forUpdate()
-    .executeTakeFirst();
+  const player = await Player.findOne({
+    gameId: game._id,
+    username: username,
+  });
 
   if (!player) {
     throw new Error("Player not found in this game.");
@@ -54,32 +47,20 @@ async function handleAnswerSubmission(trx: Transaction<DB>, gameCode: string, us
 
   const timeElapsed = Date.now() - questionStartTime;
   if (timeElapsed > QUESTION_TIME_LIMIT_MS) {
-    // Time is up - use idempotent elimination that only affects active players
-    const eliminationResult = await trx
-      .updateTable('players')
-      .set({ 
-        status: 'eliminated',
-        eliminatedRound: game.currentQuestionIndex
-      })
-      .where('id', '=', player.id)
-      .where('status', '=', 'active') // Only eliminate if still active
-      .returningAll()
-      .execute();
+    // Time is up - eliminate player
+    player.status = 'eliminated';
+    player.eliminatedRound = game.currentQuestionIndex;
+    await player.save();
     
-    if (eliminationResult.length > 0) {
-      console.log(`Player ${username} eliminated due to timeout in game ${gameCode}, question ${game.currentQuestionIndex}`);
-    }
-    
+    console.log(`Player ${username} eliminated due to timeout in game ${gameCode}, question ${game.currentQuestionIndex}`);
     return { status: 'eliminated', message: "Time's up! You have been eliminated." };
   }
 
   // 3. Get the current question and validate the answer
-  const question = await trx
-    .selectFrom('questions')
-    .where('gameId', '=', game.id)
-    .where('questionIndex', '=', game.currentQuestionIndex)
-    .selectAll()
-    .executeTakeFirst();
+  const question = await Question.findOne({
+    gameId: game._id,
+    questionIndex: game.currentQuestionIndex,
+  });
 
   if (!question) {
     throw new Error("Current question could not be found.");
@@ -90,34 +71,23 @@ async function handleAnswerSubmission(trx: Transaction<DB>, gameCode: string, us
     console.log(`Player ${username} answered correctly in game ${gameCode}, question ${game.currentQuestionIndex}`);
     return { status: 'active', message: "Answer submitted successfully." };
   } else {
-    // Incorrect answer - use idempotent elimination that only affects active players
-    const eliminationResult = await trx
-      .updateTable('players')
-      .set({ 
-        status: 'eliminated',
-        eliminatedRound: game.currentQuestionIndex
-      })
-      .where('id', '=', player.id)
-      .where('status', '=', 'active') // Only eliminate if still active
-      .returningAll()
-      .execute();
+    // Incorrect answer - eliminate player
+    player.status = 'eliminated';
+    player.eliminatedRound = game.currentQuestionIndex;
+    await player.save();
     
-    if (eliminationResult.length > 0) {
-      console.log(`Player ${username} eliminated due to incorrect answer in game ${gameCode}, question ${game.currentQuestionIndex}`);
-    }
-    
+    console.log(`Player ${username} eliminated due to incorrect answer in game ${gameCode}, question ${game.currentQuestionIndex}`);
     return { status: 'eliminated', message: "Incorrect answer. You have been eliminated." };
   }
 }
 
 export async function handle(request: Request) {
   try {
+    await dbConnect();
     const json = superjson.parse(await request.text());
     const { gameCode, username, answer } = schema.parse(json);
 
-    const result = await db.transaction().execute((trx) => 
-      handleAnswerSubmission(trx, gameCode, username, answer)
-    );
+    const result = await handleAnswerSubmission(gameCode, username, answer);
     
     return new Response(superjson.stringify(result satisfies OutputType), {
       headers: { "Content-Type": "application/json" },

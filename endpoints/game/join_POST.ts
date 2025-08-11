@@ -1,54 +1,42 @@
 import { schema, OutputType } from "./join_POST.schema";
-import { db } from "../../helpers/db";
+import dbConnect from "../../lib/db/connect";
+import { Game } from "../../lib/models/Game";
+import { Player } from "../../lib/models/Player";
 import superjson from 'superjson';
 
 export async function handle(request: Request): Promise<Response> {
   try {
+    await dbConnect();
     const json = superjson.parse(await request.text());
     const input = schema.parse(json);
 
-    const newPlayer = await db.transaction().execute(async (trx) => {
-      const game = await trx
-        .selectFrom('games')
-        .select(['id', 'status'])
-        .where('code', '=', input.gameCode.toUpperCase())
-        .executeTakeFirst();
+    const game = await Game.findOne({ code: input.gameCode.toUpperCase() });
 
-      if (!game) {
-        throw new Error("Game not found.");
-      }
+    if (!game) {
+      throw new Error("Game not found.");
+    }
 
-      if (game.status !== 'lobby') {
-        throw new Error("This game is no longer accepting new players.");
-      }
+    if (game.status !== 'lobby') {
+      throw new Error("This game is no longer accepting new players.");
+    }
 
-      const existingPlayer = await trx
-        .selectFrom('players')
-        .select('id')
-        .where('gameId', '=', game.id)
-        .where(
-          'username',
-          'ilike',
-          input.username
-        )
-        .executeTakeFirst();
-
-      if (existingPlayer) {
-        throw new Error("This username is already taken in this game.");
-      }
-
-      return await trx
-        .insertInto('players')
-        .values({
-          gameId: game.id,
-          username: input.username,
-          status: 'active',
-        })
-        .returningAll()
-        .executeTakeFirstOrThrow();
+    const existingPlayer = await Player.findOne({ 
+      gameId: game._id, 
+      username: { $regex: new RegExp(`^${input.username}, 'i') } 
     });
 
-    return new Response(superjson.stringify(newPlayer satisfies OutputType), {
+    if (existingPlayer) {
+      throw new Error("This username is already taken in this game.");
+    }
+
+    const newPlayer = new Player({
+      gameId: game._id,
+      username: input.username,
+    });
+
+    await newPlayer.save();
+
+    return new Response(superjson.stringify(newPlayer.toObject() as OutputType), {
       headers: { "Content-Type": "application/json" },
     });
   } catch (error) {

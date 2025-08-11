@@ -1,17 +1,16 @@
 import { schema, OutputType } from "./end_POST.schema";
-import { db } from "../../helpers/db";
+import dbConnect from "../../lib/db/connect";
+import { Game } from "../../lib/models/Game";
+import { Player } from "../../lib/models/Player";
 import superjson from 'superjson';
 
 export async function handle(request: Request): Promise<Response> {
   try {
+    await dbConnect();
     const json = superjson.parse(await request.text());
     const { gameCode, hostName } = schema.parse(json);
 
-    const game = await db
-      .selectFrom('games')
-      .selectAll()
-      .where('code', '=', gameCode)
-      .executeTakeFirst();
+    const game = await Game.findOne({ code: gameCode });
 
     if (!game) {
       return new Response(superjson.stringify({ error: "Game not found." }), { status: 404 });
@@ -25,12 +24,7 @@ export async function handle(request: Request): Promise<Response> {
       return new Response(superjson.stringify({ error: "Game is already finished." }), { status: 409 });
     }
 
-    const activePlayers = await db
-      .selectFrom('players')
-      .selectAll()
-      .where('gameId', '=', game.id)
-      .where('status', '=', 'active')
-      .execute();
+    const activePlayers = await Player.find({ gameId: game._id, status: 'active' });
 
     if (activePlayers.length !== 1) {
       return new Response(superjson.stringify({ error: "Cannot end the game without a single winner." }), { status: 400 });
@@ -39,23 +33,13 @@ export async function handle(request: Request): Promise<Response> {
     const winner = activePlayers[0];
 
     // Distribute the prize
-    await db
-      .updateTable('players')
-      .set({ balance: winner.balance + game.currentPrizePot })
-      .where('id', '=', winner.id)
-      .execute();
+    winner.balance += game.currentPrizePot;
+    await winner.save();
 
-    const updatedGame = await db
-      .updateTable('games')
-      .set({ 
-        status: 'finished',
-        updatedAt: new Date(),
-      })
-      .where('id', '=', game.id)
-      .returningAll()
-      .executeTakeFirstOrThrow();
+    game.status = 'finished';
+    await game.save();
 
-    return new Response(superjson.stringify(updatedGame satisfies OutputType));
+    return new Response(superjson.stringify(game.toObject() as OutputType));
   } catch (error) {
     console.error("Error ending game:", error);
     const errorMessage = error instanceof Error ? error.message : "An unexpected error occurred.";

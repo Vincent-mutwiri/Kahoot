@@ -3,7 +3,7 @@ import react from "@vitejs/plugin-react-swc";
 import path from "node:path";
 import { nodePolyfills } from "vite-plugin-node-polyfills";
 
-export default defineConfig(({ isSsrBuild }) => ({
+export default defineConfig(() => ({
   plugins: [
     nodePolyfills({
       include: ["stream", "crypto", "process"],
@@ -16,7 +16,22 @@ export default defineConfig(({ isSsrBuild }) => ({
     }),
     react(),
   ],
+  resolve: {
+    alias: {
+      "@": path.resolve(__dirname, "."),
+    },
+  },
   build: {
     assetsDir: "_assets",
+  },
+  server: {
+    port: 3000,
+    proxy: {
+      "/_api": {
+        target: "http://localhost:3344",
+        changeOrigin: true,
+        
+      },
+    },
   },
 }));

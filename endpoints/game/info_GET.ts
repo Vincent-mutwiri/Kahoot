@@ -1,34 +1,28 @@
 import { schema, OutputType } from "./info_GET.schema";
-import { db } from "../../helpers/db";
+import dbConnect from "../../lib/db/connect";
+import { Game } from "../../lib/models/Game";
+import { Player } from "../../lib/models/Player";
 import superjson from 'superjson';
 
 export async function handle(request: Request): Promise<Response> {
   try {
+    await dbConnect();
     const url = new URL(request.url);
     const input = schema.parse({
       gameCode: url.searchParams.get('gameCode'),
     });
 
-    const game = await db
-      .selectFrom('games')
-      .selectAll()
-      .where('code', '=', input.gameCode.toUpperCase())
-      .executeTakeFirst();
+    const game = await Game.findOne({ code: input.gameCode.toUpperCase() });
 
     if (!game) {
       return new Response(superjson.stringify({ error: "Game not found" }), { status: 404 });
     }
 
-    const players = await db
-      .selectFrom('players')
-      .selectAll()
-      .where('gameId', '=', game.id)
-      .orderBy('username', 'asc')
-      .execute();
+    const players = await Player.find({ gameId: game._id }).sort({ username: 'asc' });
 
     const response: OutputType = {
-      game,
-      players,
+      game: game.toObject(),
+      players: players.map(p => p.toObject()),
     };
 
     return new Response(superjson.stringify(response), {

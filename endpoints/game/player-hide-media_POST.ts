@@ -1,27 +1,22 @@
 import { schema, OutputType } from "./player-hide-media_POST.schema";
-import { db } from "../../helpers/db";
+import dbConnect from "../../lib/db/connect";
+import { Game } from "../../lib/models/Game";
 import superjson from 'superjson';
 
 export async function handle(request: Request): Promise<Response> {
   try {
+    await dbConnect();
     const json = superjson.parse(await request.text());
     const { gameCode } = schema.parse(json);
 
-    const game = await db
-      .selectFrom('games')
-      .select('id')
-      .where('code', '=', gameCode)
-      .executeTakeFirst();
+    const game = await Game.findOne({ code: gameCode });
 
     if (!game) {
       return new Response(superjson.stringify({ error: "Game not found." }), { status: 404 });
     }
 
-    await db
-      .updateTable('games')
-      .set({ mediaUrl: null })
-      .where('id', '=', game.id)
-      .execute();
+    game.mediaUrl = null;
+    await game.save();
 
     const response: OutputType = { success: true };
     return new Response(superjson.stringify(response));

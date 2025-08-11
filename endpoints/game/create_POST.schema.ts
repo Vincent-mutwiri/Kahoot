@@ -27,8 +27,11 @@ export const postGameCreate = async (body: InputType, init?: RequestInit): Promi
 
   const text = await result.text();
   if (!result.ok) {
-    const errorObject = superjson.parse(text) as { error?: string };
-    throw new Error(errorObject.error || "Failed to create game");
+    if (text) {
+      const errorObject = superjson.parse(text) as { error?: string };
+      throw new Error(errorObject?.error || "Failed to create game");
+    }
+    throw new Error("Failed to create game: An unknown server error occurred.");
   }
   
   return superjson.parse<OutputType>(text);

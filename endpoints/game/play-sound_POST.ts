@@ -1,17 +1,15 @@
 import { schema, OutputType } from "./play-sound_POST.schema";
-import { db } from "../../helpers/db";
+import dbConnect from "../../lib/db/connect";
+import { Game } from "../../lib/models/Game";
 import superjson from 'superjson';
 
 export async function handle(request: Request): Promise<Response> {
   try {
+    await dbConnect();
     const json = superjson.parse(await request.text());
     const { gameCode, hostName, soundId } = schema.parse(json);
 
-    const game = await db
-      .selectFrom('games')
-      .select(['id', 'hostName'])
-      .where('code', '=', gameCode)
-      .executeTakeFirst();
+    const game = await Game.findOne({ code: gameCode });
 
     if (!game) {
       return new Response(superjson.stringify({ error: "Game not found." }), { status: 404 });
@@ -21,11 +19,9 @@ export async function handle(request: Request): Promise<Response> {
       return new Response(superjson.stringify({ error: "Only the host can play sounds." }), { status: 403 });
     }
 
-    await db
-      .updateTable('games')
-      .set({ soundId: soundId, mediaUrl: null })
-      .where('id', '=', game.id)
-      .execute();
+    game.soundId = soundId;
+    game.mediaUrl = null;
+    await game.save();
 
     const response: OutputType = { success: true, message: "Sound will be played shortly." };
     return new Response(superjson.stringify(response));

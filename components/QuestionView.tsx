@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import type { Selectable } from 'kysely';
 import type { Games, Players } from '../helpers/schema';
-import { useSubmitAnswer } from '../helpers/playerQueries';
+import { useSubmitAnswerMutation } from '../helpers/playerQueries';
 import { useSyncedCountdown } from '../helpers/useSyncedCountdown';
 import { PlayerList } from './PlayerList';
 import { Button } from './Button';
@@ -45,7 +45,7 @@ export const QuestionView: React.FC<QuestionViewProps> = ({
   const [selectedAnswer, setSelectedAnswer] = useState<AnswerOption | null>(null);
   const [isLocked, setIsLocked] = useState(false);
 
-  const submitAnswerMutation = useSubmitAnswer();
+  const submitAnswerMutation = useSubmitAnswerMutation();
 
   // Use server-synchronized countdown
   const { remainingSeconds, remainingPercentage, isExpired } = useSyncedCountdown(

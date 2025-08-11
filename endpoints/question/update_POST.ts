@@ -1,18 +1,14 @@
-import { db } from "../../helpers/db";
+import dbConnect from "../../lib/db/connect";
+import { Game } from "../../lib/models/Game";
+import { Question } from "../../lib/models/Question";
 import { schema, OutputType, InputType } from "./update_POST.schema";
 import superjson from 'superjson';
-import { Transaction } from "kysely";
-import { DB } from "../../helpers/schema";
 
-async function updateQuestionTransaction(trx: Transaction<DB>, validatedInput: InputType) {
+async function updateQuestionTransaction(validatedInput: InputType) {
   const { gameCode, hostName, questionId, ...updateData } = validatedInput;
 
   // 1. Find the game and validate the host
-  const game = await trx
-    .selectFrom('games')
-    .select(['id', 'hostName', 'status', 'currentQuestionIndex'])
-    .where('code', '=', gameCode)
-    .executeTakeFirst();
+  const game = await Game.findOne({ code: gameCode });
 
   if (!game) {
     throw new Error("Game not found.");
@@ -23,12 +19,10 @@ async function updateQuestionTransaction(trx: Transaction<DB>, validatedInput: I
   }
 
   // 2. Find the question to update
-  const question = await trx
-    .selectFrom('questions')
-    .select(['questionIndex'])
-    .where('id', '=', questionId)
-    .where('gameId', '=', game.id)
-    .executeTakeFirst();
+  const question = await Question.findOne({
+    _id: questionId,
+    gameId: game._id,
+  });
 
   if (!question) {
     throw new Error("Question not found in this game.");
@@ -43,24 +37,18 @@ async function updateQuestionTransaction(trx: Transaction<DB>, validatedInput: I
   }
 
   // 4. Update the question
-  const updatedQuestion = await trx
-    .updateTable('questions')
-    .set(updateData)
-    .where('id', '=', questionId)
-    .returningAll()
-    .executeTakeFirstOrThrow();
+  const updatedQuestion = await Question.findByIdAndUpdate(questionId, updateData, { new: true });
 
   return updatedQuestion;
 }
 
 export async function handle(request: Request) {
   try {
+    await dbConnect();
     const json = superjson.parse(await request.text());
     const validatedInput = schema.parse(json);
 
-    const updatedQuestion = await db.transaction().execute(
-        (trx) => updateQuestionTransaction(trx, validatedInput)
-    );
+    const updatedQuestion = await updateQuestionTransaction(validatedInput);
     
     return new Response(superjson.stringify(updatedQuestion satisfies OutputType), {
         headers: { 'Content-Type': 'application/json' },

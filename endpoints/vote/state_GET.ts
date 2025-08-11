@@ -1,53 +1,44 @@
-import { db } from "../../helpers/db";
+import dbConnect from "../../lib/db/connect";
+import { RedemptionRound } from "../../lib/models/RedemptionRound";
+import { Player } from "../../lib/models/Player";
+import { Vote } from "../../lib/models/Vote";
 import { schema, OutputType, VoteTally } from "./state_GET.schema";
 import superjson from 'superjson';
-import { sql } from "kysely";
 
 export async function handle(request: Request): Promise<Response> {
   try {
+    await dbConnect();
     const url = new URL(request.url);
     const { roundId } = schema.parse({
       roundId: url.searchParams.get('roundId'),
     });
 
     // 1. Get the redemption round details
-    const round = await db
-      .selectFrom('redemptionRounds')
-      .selectAll()
-      .where('id', '=', roundId)
-      .executeTakeFirst();
+    const round = await RedemptionRound.findById(roundId);
 
     if (!round) {
       return new Response(superjson.stringify({ error: "Voting round not found." }), { status: 404 });
     }
 
     // 2. Get eligible candidates for this round
-    const eligibleCandidates = await db
-      .selectFrom('players')
-      .select(['id', 'username'])
-      .where('gameId', '=', round.gameId)
-      .where('status', '=', 'eliminated')
-      .where('eliminatedRound', '=', round.questionIndex)
-      .orderBy('id', 'asc')
-      .execute();
+    const eligibleCandidates = await Player.find({
+      gameId: round.gameId,
+      status: 'eliminated',
+      eliminatedRound: round.questionIndex,
+    }).sort({ _id: 1 });
 
     // 3. Get current vote tallies
-    const voteCounts = await db
-      .selectFrom('votes')
-      .select([
-        'votedForPlayerId',
-        sql<string>`count(id)`.as('votes')
-      ])
-      .where('redemptionRoundId', '=', roundId)
-      .groupBy('votedForPlayerId')
-      .execute();
+    const voteCounts = await Vote.aggregate([
+      { $match: { redemptionRoundId: round._id } },
+      { $group: { _id: '$votedForPlayerId', votes: { $sum: 1 } } },
+    ]);
 
     const voteTallies: VoteTally[] = eligibleCandidates.map(candidate => {
-      const count = voteCounts.find(vc => vc.votedForPlayerId === candidate.id);
+      const count = voteCounts.find(vc => vc._id.toString() === candidate._id.toString());
       return {
-        playerId: candidate.id,
+        playerId: candidate._id.toString(),
         username: candidate.username,
-        votes: parseInt(count?.votes ?? '0', 10),
+        votes: count?.votes ?? 0,
       };
     });
 
@@ -60,7 +51,7 @@ export async function handle(request: Request): Promise<Response> {
       status: round.status,
       timeRemaining,
       voteTallies,
-      eligibleCandidates,
+      eligibleCandidates: eligibleCandidates.map(p => p.toObject()),
     };
 
     return new Response(superjson.stringify(response), {

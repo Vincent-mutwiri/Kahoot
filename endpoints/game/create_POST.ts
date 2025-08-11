@@ -1,9 +1,7 @@
 import { schema, OutputType } from "./create_POST.schema";
-import { db } from "../../helpers/db";
-
+import dbConnect from "../../lib/db/connect";
+import { Game } from "../../lib/models/Game";
 import superjson from 'superjson';
-import { Kysely, sql } from "kysely";
-import { DB } from "../../helpers/schema";
 
 const ALPHANUMERIC = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ';
 const CODE_LENGTH = 6;
@@ -16,18 +14,14 @@ function generateRandomCode(): string {
   return result;
 }
 
-async function generateUniqueGameCode(trx: Kysely<DB>): Promise<string> {
+async function generateUniqueGameCode(): Promise<string> {
   let gameCode: string;
   let attempts = 0;
   const maxAttempts = 10;
 
   do {
     gameCode = generateRandomCode();
-    const existingGame = await trx
-      .selectFrom('games')
-      .select('id')
-      .where('code', '=', gameCode)
-      .executeTakeFirst();
+    const existingGame = await Game.findOne({ code: gameCode });
 
     if (!existingGame) {
       return gameCode;
@@ -41,27 +35,23 @@ async function generateUniqueGameCode(trx: Kysely<DB>): Promise<string> {
 
 export async function handle(request: Request): Promise<Response> {
   try {
+    await dbConnect();
     const json = superjson.parse(await request.text());
     const input = schema.parse(json);
 
-    const newGame = await db.transaction().execute(async (trx) => {
-      const gameCode = await generateUniqueGameCode(trx as Kysely<DB>);
+    const gameCode = await generateUniqueGameCode();
 
-      return await trx
-        .insertInto('games')
-        .values({
-          code: gameCode,
-          hostName: input.hostName,
-          initialPrizePot: input.initialPrizePot,
-          prizePotIncrement: input.prizePotIncrement,
-          status: 'lobby',
-          currentPrizePot: input.initialPrizePot,
-        })
-        .returningAll()
-        .executeTakeFirstOrThrow();
+    const newGame = new Game({
+      code: gameCode,
+      hostName: input.hostName,
+      initialPrizePot: input.initialPrizePot,
+      prizePotIncrement: input.prizePotIncrement,
+      currentPrizePot: input.initialPrizePot,
     });
 
-    return new Response(superjson.stringify(newGame satisfies OutputType), {
+    await newGame.save();
+
+    return new Response(superjson.stringify(newGame.toObject() as OutputType), {
       headers: { "Content-Type": "application/json" },
     });
   } catch (error) {

@@ -1,18 +1,14 @@
-import { db } from "../../helpers/db";
+import dbConnect from "../../lib/db/connect";
+import { Game } from "../../lib/models/Game";
+import { Question } from "../../lib/models/Question";
 import { schema, OutputType } from "./add_POST.schema";
 import superjson from 'superjson';
-import { Transaction } from "kysely";
-import { DB } from "../../helpers/schema";
 
-async function addQuestionTransaction(trx: Transaction<DB>, validatedInput: import("./add_POST.schema").InputType) {
+async function addQuestionTransaction(validatedInput: import("./add_POST.schema").InputType) {
   const { gameCode, hostName, questionText, optionA, optionB, optionC, optionD, correctAnswer } = validatedInput;
 
   // 1. Find the game and validate the host
-  const game = await trx
-    .selectFrom('games')
-    .select(['id', 'hostName', 'status'])
-    .where('code', '=', gameCode)
-    .executeTakeFirst();
+  const game = await Game.findOne({ code: gameCode });
 
   if (!game) {
     throw new Error("Game not found.");
@@ -27,29 +23,21 @@ async function addQuestionTransaction(trx: Transaction<DB>, validatedInput: impo
   }
 
   // 2. Determine the next question index
-  const questionCountResult = await trx
-    .selectFrom('questions')
-    .select(eb => eb.fn.count<string>('id').as('count'))
-    .where('gameId', '=', game.id)
-    .executeTakeFirst();
-  
-  const questionIndex = parseInt(questionCountResult?.count ?? '0', 10);
+  const questionCount = await Question.countDocuments({ gameId: game._id });
+  const questionIndex = questionCount;
 
   // 3. Insert the new question
-  const newQuestion = await trx
-    .insertInto('questions')
-    .values({
-      gameId: game.id,
-      questionIndex,
-      questionText,
-      optionA,
-      optionB,
-      optionC,
-      optionD,
-      correctAnswer,
-    })
-    .returningAll()
-    .executeTakeFirstOrThrow();
+  const newQuestion = new Question({
+    gameId: game._id,
+    questionIndex,
+    questionText,
+    optionA,
+    optionB,
+    optionC,
+    optionD,
+    correctAnswer,
+  });
+  await newQuestion.save();
 
   return newQuestion;
 }
@@ -57,12 +45,11 @@ async function addQuestionTransaction(trx: Transaction<DB>, validatedInput: impo
 
 export async function handle(request: Request) {
   try {
+    await dbConnect();
     const json = superjson.parse(await request.text());
     const validatedInput = schema.parse(json);
 
-    const newQuestion = await db.transaction().execute(
-        (trx) => addQuestionTransaction(trx, validatedInput)
-    );
+    const newQuestion = await addQuestionTransaction(validatedInput);
     
     return new Response(superjson.stringify(newQuestion satisfies OutputType), {
         headers: { 'Content-Type': 'application/json' },

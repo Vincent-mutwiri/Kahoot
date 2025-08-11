@@ -1,17 +1,15 @@
+import dbConnect from "../../lib/db/connect";
+import { Game } from "../../lib/models/Game";
 import { schema, OutputType } from "./reveal-answer_POST.schema";
-import { db } from "../../helpers/db";
 import superjson from 'superjson';
 
 export async function handle(request: Request): Promise<Response> {
   try {
+    await dbConnect();
     const json = superjson.parse(await request.text());
     const { gameCode, hostName } = schema.parse(json);
 
-    const game = await db
-      .selectFrom('games')
-      .selectAll()
-      .where('code', '=', gameCode)
-      .executeTakeFirst();
+    const game = await Game.findOne({ code: gameCode });
 
     if (!game) {
       return new Response(superjson.stringify({ error: "Game not found." }), { status: 404 });

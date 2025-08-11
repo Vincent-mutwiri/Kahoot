@@ -1,63 +1,52 @@
-import { db } from "../../helpers/db";
+import dbConnect from "../../lib/db/connect";
+import { Game } from "../../lib/models/Game";
+import { Player } from "../../lib/models/Player";
+import { Question } from "../../lib/models/Question";
 import { schema, OutputType } from "./state_GET.schema";
 import superjson from 'superjson';
-import { Selectable } from "kysely";
-import { Games, Players, Questions } from "../../helpers/schema";
 
 export async function handle(request: Request) {
   try {
+    await dbConnect();
     const url = new URL(request.url);
     const gameCode = url.searchParams.get('gameCode');
     const username = url.searchParams.get('username');
 
     const { gameCode: validatedGameCode, username: validatedUsername } = schema.parse({ gameCode, username });
 
-    const game = await db
-      .selectFrom('games')
-      .where('code', '=', validatedGameCode)
-      .selectAll()
-      .executeTakeFirst();
+    const game = await Game.findOne({ code: validatedGameCode });
 
     if (!game) {
       return new Response(superjson.stringify({ error: "Game not found." }), { status: 404 });
     }
 
-    const player = await db
-      .selectFrom('players')
-      .where('gameId', '=', game.id)
-      .where('username', '=', validatedUsername)
-      .selectAll()
-      .executeTakeFirst();
+    const player = await Player.findOne({
+      gameId: game._id,
+      username: validatedUsername,
+    });
 
     if (!player) {
       return new Response(superjson.stringify({ error: "Player not found in this game." }), { status: 404 });
     }
 
-    const allPlayers = await db
-      .selectFrom('players')
-      .where('gameId', '=', game.id)
-      .select(['id', 'username', 'status', 'eliminatedRound'])
-      .orderBy('username')
-      .execute();
+    const allPlayers = await Player.find({ gameId: game._id }).sort({ username: 'asc' });
 
-    let currentQuestion: Selectable<Questions> | null = null;
+    let currentQuestion: any | null = null;
     if (game.status === 'active' && game.currentQuestionIndex !== null) {
-    currentQuestion = await db
-      .selectFrom('questions')
-      .where('gameId', '=', game.id)
-      .where('questionIndex', '=', game.currentQuestionIndex)
-      .selectAll()
-      .executeTakeFirst() || null;
+    currentQuestion = await Question.findOne({
+      gameId: game._id,
+      questionIndex: game.currentQuestionIndex,
+    });
     }
 
     const output: OutputType = {
       game: {
-        ...game,
+        ...game.toObject(),
         // Omit sensitive data for players
         hostName: game.hostName === player.username ? game.hostName : 'Host',
       },
-      player,
-      players: allPlayers,
+      player: player.toObject(),
+      players: allPlayers.map(p => p.toObject()),
       currentQuestion: currentQuestion ? {
         questionText: currentQuestion.questionText,
         optionA: currentQuestion.optionA,
