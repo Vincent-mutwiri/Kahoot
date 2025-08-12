@@ -2,6 +2,7 @@ import "./loadEnv.js";
 import { Hono } from 'hono'
 import { serveStatic } from '@hono/node-server/serve-static'
 import { serve } from '@hono/node-server';
+import { setupWebSocket } from './lib/websocket.js';
 import fs from 'fs';
 
 const logStream = fs.createWriteStream('./server.log', { flags: 'a' });
@@ -519,6 +520,7 @@ app.get("*", async (c, next) => {
   }
   return serveStatic({ path: "./dist/index.html" })(c, next);
 });
-serve({ fetch: app.fetch, port: 3344 });
+const server = serve({ fetch: app.fetch, port: 3344 });
+setupWebSocket(server);
 console.log("Running at http://localhost:3344")
       

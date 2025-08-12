@@ -65,6 +65,44 @@ export const usePlayerConnection = (
     }
   }, [data, isFetching, error, refetch]);
 
+  // WebSocket: subscribe to server push for this game and refetch on events
+  useEffect(() => {
+    if (!options?.enabled) return;
+    if (!params.gameCode) return;
+
+    let ws: WebSocket | null = null;
+    const connect = () => {
+      setConnectionStatus('connecting');
+      const url = new URL('/ws', window.location.origin.replace(/^http/, 'ws'));
+      url.searchParams.set('gameCode', params.gameCode);
+      ws = new WebSocket(url.toString());
+
+      ws.onopen = () => {
+        setConnectionStatus('connected');
+      };
+      ws.onmessage = () => {
+        // Any message means something changed; refetch latest state
+        refetch();
+      };
+      ws.onerror = () => {
+        setConnectionStatus('error');
+      };
+      ws.onclose = () => {
+        setConnectionStatus('disconnected');
+        // Attempt quick reconnect after brief delay
+        setTimeout(() => connect(), 1000);
+      };
+    };
+
+    connect();
+    return () => {
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.close();
+      }
+      ws = null;
+    };
+  }, [params.gameCode, options?.enabled, refetch]);
+
   // Monitor for stale data (no updates for more than expected polling interval)
   useEffect(() => {
     if (connectionStatus === 'connected' && lastSuccessRef.current) {

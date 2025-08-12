@@ -47,6 +47,7 @@
     "embla-carousel": "^8.5.2",
     "embla-carousel-react": "^8.5.2",
     "hono": "^4.7.5",
+    "ws": "^8.18.0",
     "kysely": "0.26.3",
     "kysely-postgres-js": "2.0.0",
     "lucide-react": "^0.477.0",

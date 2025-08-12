@@ -2,6 +2,7 @@ import dbConnect from "../../lib/db/connect";
 import { Game } from "../../lib/models/Game";
 import { schema, OutputType } from "./start_POST.schema";
 import superjson from 'superjson';
+import { broadcastToGame } from "../../lib/websocket.js";
 
 export async function handle(request: Request): Promise<Response> {
   try {
@@ -24,9 +25,14 @@ export async function handle(request: Request): Promise<Response> {
     }
 
     game.status = 'active';
+    game.gameState = 'question'; // Set gameState to question
     game.currentQuestionIndex = 0; // Start with the first question
     game.updatedAt = new Date();
     await game.save();
+
+    // Notify players in this game
+    broadcastToGame(gameCode, { type: 'GAME_STARTED', gameCode });
+    broadcastToGame(gameCode, { type: 'GAME_STATE_CHANGED', gameCode });
 
     return new Response(superjson.stringify(game.toObject() satisfies OutputType));
   } catch (error) {

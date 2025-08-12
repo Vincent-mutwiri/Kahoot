@@ -2,6 +2,7 @@ import dbConnect from "../../lib/db/connect";
 import { Game } from "../../lib/models/Game";
 import { schema, OutputType } from "./reveal-answer_POST.schema";
 import superjson from 'superjson';
+import { broadcastToGame } from "../../lib/websocket.js";
 
 export async function handle(request: Request): Promise<Response> {
   try {
@@ -27,8 +28,9 @@ export async function handle(request: Request): Promise<Response> {
         return new Response(superjson.stringify({ error: "No active question to reveal." }), { status: 409 });
     }
 
-    // This endpoint is a trigger for clients. No state change is needed on the backend.
-    // A real-time layer would broadcast this event. For now, we return a success message.
+    // Trigger clients to reveal the answer via WebSocket broadcast
+    broadcastToGame(gameCode, { type: 'REVEAL_ANSWER', gameCode, questionIndex: game.currentQuestionIndex });
+    broadcastToGame(gameCode, { type: 'GAME_STATE_CHANGED', gameCode });
     const response: OutputType = { success: true, message: "Answer reveal triggered." };
     return new Response(superjson.stringify(response));
   } catch (error) {

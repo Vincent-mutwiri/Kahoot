@@ -3,6 +3,7 @@ import { Game } from "../../lib/models/Game";
 import { Player } from "../../lib/models/Player";
 import { schema, OutputType } from "./next-question_POST.schema";
 import superjson from 'superjson';
+import { broadcastToGame } from "../../lib/websocket.js";
 
 const QUESTION_TIME_LIMIT_MS = 30 * 1000; // 30 seconds
 
@@ -72,6 +73,9 @@ export async function handle(request: Request): Promise<Response> {
     await currentGame.save();
 
     console.log(`[Game ${gameCode}] Successfully advanced to question ${currentGame.currentQuestionIndex}`);
+    // Push update to all clients in this game
+    broadcastToGame(gameCode, { type: 'NEXT_QUESTION', gameCode, questionIndex: currentGame.currentQuestionIndex });
+    broadcastToGame(gameCode, { type: 'GAME_STATE_CHANGED', gameCode });
     return new Response(superjson.stringify(currentGame.toObject() satisfies OutputType));
   } catch (error) {
         console.error("Error advancing to next question:", error);

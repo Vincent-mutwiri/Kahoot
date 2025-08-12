@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet';
 import { usePlayerConnection } from '../helpers/usePlayerConnection';
 import { usePlayerHideMediaMutation } from '../helpers/playerQueries';
+import { useWebSocket } from '../helpers/useWebSocket';
 import { VotingModal } from '../components/VotingModal';
 import { GamePageSkeleton } from '../components/GamePageSkeleton';
 import { LobbyView } from '../components/LobbyView';
@@ -38,6 +39,23 @@ const GamePage: React.FC = () => {
     }
   };
   const hideMediaMutation = usePlayerHideMediaMutation();
+
+  // WebSocket for real-time updates
+  useWebSocket(gameCode!, (message) => {
+    console.log('WebSocket message received:', message);
+    if (message.type === 'GAME_STARTED') {
+      console.log('Game started via WebSocket');
+      refetch(); // Refresh game data
+    }
+    if (message.type === 'GAME_STATE_CHANGED') {
+      console.log('Game state changed:', message.gameState);
+      refetch(); // Refresh game data
+    }
+    // Refetch on any game-related message to ensure sync
+    if (message.gameCode === gameCode) {
+      refetch();
+    }
+  });
 
   useEffect(() => {
     if (!gameCode) {
@@ -175,6 +193,7 @@ const GamePage: React.FC = () => {
         return <LobbyView game={game} players={players} />;
         
       case 'question':
+      case 'active': // Handle both gameState and status
         if (currentQuestion) {
           return <QuestionView 
             game={game} 
@@ -183,6 +202,21 @@ const GamePage: React.FC = () => {
             currentQuestion={currentQuestion} 
             questionStartTimeMs={questionStartTimeMs || null} 
           />;
+        }
+        // If game is active but no current question, show waiting state
+        if (game.status === 'active') {
+          return (
+            <div className={styles.centeredMessage}>
+              <h2 className={styles.heading}>Game Started!</h2>
+              <p>Waiting for the first question...</p>
+              {isFetching && (
+                <div className={styles.subtleLoader}>
+                  <div className={styles.subtleSpinner}></div>
+                  <span>Loading...</span>
+                </div>
+              )}
+            </div>
+          );
         }
         break;
         

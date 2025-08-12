@@ -32,6 +32,11 @@ export default defineConfig(() => ({
         changeOrigin: true,
         
       },
+      "/ws": {
+      	 target: "http://localhost:3344",
+      	 changeOrigin: true,
+      	 ws: true,
+      },
     },
   },
 }));
