@@ -22,7 +22,7 @@ export async function handle(request: Request): Promise<Response> {
 
     const existingPlayer = await Player.findOne({ 
       gameId: game._id, 
-      username: { $regex: new RegExp(`^${input.username}, 'i') } 
+      username: { $regex: new RegExp(`^${input.username}`, 'i') } 
     });
 
     if (existingPlayer) {

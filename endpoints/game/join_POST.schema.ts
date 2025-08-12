@@ -27,7 +27,7 @@ export const postGameJoin = async (body: InputType, init?: RequestInit): Promise
   const text = await result.text();
   if (!result.ok) {
     const errorObject = superjson.parse(text) as { error?: string };
-    throw new Error(errorObject.error || "Failed to join game");
+    throw new Error(errorObject?.error || "Failed to join game");
   }
   
   return superjson.parse<OutputType>(text);

@@ -45,6 +45,29 @@ const GamePage: React.FC = () => {
     { enabled: !!gameCode && !!username }
   );
 
+  useEffect(() => {
+    if (!data) {
+      return;
+    }
+    const { game, players } = data;
+    // Look for any recent eliminations that might trigger a voting round
+    // This is a simplified check - in practice, the backend should provide voting round info
+    const recentlyEliminatedPlayers = players.filter(p => p.status === 'eliminated' && p.eliminatedRound === game.currentQuestionIndex);
+    const hasRecentEliminations = recentlyEliminatedPlayers.length > 0;
+    
+    // For now, we'll simulate checking for an active voting round
+    // In the real implementation, this data should come from the game state
+    if (hasRecentEliminations && game.status === 'active') {
+      // Simulate a voting round ID based on current question
+      const simulatedRoundId = (game.currentQuestionIndex || 0) * 1000 + game.id;
+      setActiveVotingRoundId(simulatedRoundId);
+      setIsVotingModalOpen(true);
+    } else {
+      setActiveVotingRoundId(null);
+      setIsVotingModalOpen(false);
+    }
+  }, [data, setActiveVotingRoundId, setIsVotingModalOpen]);
+
   const handleJoin = (newUsername: string) => {
     localStorage.setItem(`lps_username_${gameCode!}`, newUsername);
     setUsername(newUsername);
@@ -130,25 +153,7 @@ const GamePage: React.FC = () => {
 
     const { game, player, players, currentQuestion, questionStartTimeMs } = data;
 
-    // Check for active voting rounds
-    useEffect(() => {
-      // Look for any recent eliminations that might trigger a voting round
-      // This is a simplified check - in practice, the backend should provide voting round info
-      const recentlyEliminatedPlayers = players.filter(p => p.status === 'eliminated' && p.eliminatedRound === game.currentQuestionIndex);
-      const hasRecentEliminations = recentlyEliminatedPlayers.length > 0;
-      
-      // For now, we'll simulate checking for an active voting round
-      // In the real implementation, this data should come from the game state
-      if (hasRecentEliminations && game.status === 'active') {
-        // Simulate a voting round ID based on current question
-        const simulatedRoundId = (game.currentQuestionIndex || 0) * 1000 + game.id;
-        setActiveVotingRoundId(simulatedRoundId);
-        setIsVotingModalOpen(true);
-      } else {
-        setActiveVotingRoundId(null);
-        setIsVotingModalOpen(false);
-      }
-    }, [data, game.currentQuestionIndex, game.status, game.id, players]);
+    
 
     // Winner State
     if (game.status === 'finished' && player.status === 'active') {
