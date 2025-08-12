@@ -10,8 +10,8 @@ export async function handle(request: Request): Promise<Response> {
     await connectToDatabase();
 
     const game = await Game.findOne({ code: gameCode });
-    if (!game || game.gameState !== 'redemption') {
-      return new Response(JSON.stringify({ error: 'Game not in redemption state' }), { status: 400 });
+    if (!game) {
+      return new Response(JSON.stringify({ error: 'Game not found' }), { status: 404 });
     }
 
     const voter = await Player.findOne({ gameId: game._id, username: voterUsername, status: 'active' });

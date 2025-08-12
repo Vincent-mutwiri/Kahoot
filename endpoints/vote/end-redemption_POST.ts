@@ -49,8 +49,8 @@ export async function handle(request: Request): Promise<Response> {
       }
     }
 
-    // Advance to next state
-    game.gameState = 'round_results';
+    // Keep gameState consistent for clients
+    game.gameState = 'question';
     await game.save();
 
     return new Response(JSON.stringify({ 
