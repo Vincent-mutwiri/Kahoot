@@ -394,6 +394,21 @@ app.post('/_api/vote/end',async c => {
     return c.json({ error: `Error loading endpoint code: ${errorMessage}` }, 500);
   }
 })
+app.post('/_api/vote/end-redemption',async c => {
+  try {
+    const { handle } = await import("./endpoints/vote/end-redemption_POST.js");
+    let request = c.req.raw;
+    const response = await handle(request);
+    if (!(response instanceof Response)) {
+      return c.text("Invalid response format. handle should always return a Response object.", 500);
+    }
+    return response;
+  } catch (e) {
+    console.error(e);
+    const errorMessage = e instanceof Error ? e.message : 'Unknown error';
+    return c.json({ error: `Error loading endpoint code: ${errorMessage}` }, 500);
+  }
+})
 app.post('/_api/upload/get-presigned-url', async c => {
   try {
     const { handle } = await import("./endpoints/upload/get-presigned-url_POST.js");
