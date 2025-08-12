@@ -74,8 +74,8 @@ const GamePage: React.FC = () => {
   };
 
   const handleHideMedia = () => {
-    if (gameCode) {
-      hideMediaMutation.mutate({ gameCode });
+    if (gameCode && username) {
+      hideMediaMutation.mutate({ gameCode, username });
     }
   };
 
