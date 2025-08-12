@@ -2,6 +2,7 @@ import "./loadEnv.js";
 import { Hono } from 'hono';
 import { serveStatic } from '@hono/node-server/serve-static';
 import { serve } from '@hono/node-server';
+import type { Server } from 'http';
 import { setupWebSocket } from './lib/websocket.js';
 import fs from 'fs';
 import path from 'path';
@@ -26,12 +27,26 @@ console.error = function (...args) {
   originalConsoleError.apply(console, args as [any?, ...any[]]);
 };
 
-// Add type declarations for process
-interface NodeProcess extends NodeJS.Process {
-  on(event: string, listener: (...args: any[]) => void): this;
-}
+// Import custom type declarations
+import './types/process.d';
 
-declare const process: NodeProcess;
+// Environment variable validation
+const requiredEnvVars = [
+  'AWS_ACCESS_KEY_ID',
+  'AWS_SECRET_ACCESS_KEY',
+  'AWS_REGION',
+  'AWS_S3_BUCKET_NAME',
+  'MONGODB_URI'
+] as const;
+
+// Validate required environment variables
+if (process.env.NODE_ENV !== 'test') {
+  const missingVars = requiredEnvVars.filter(varName => !process.env[varName]);
+  if (missingVars.length > 0) {
+    console.error('Missing required environment variables:', missingVars.join(', '));
+    process.exit(1);
+  }
+}
 
 // Handle uncaught exceptions
 process.on('uncaughtException', (error: Error) => {
@@ -523,7 +538,27 @@ app.get("*", async (c, next) => {
   }
   return serveStatic({ path: "./dist/index.html" })(c, next);
 });
-const server = serve({ fetch: app.fetch, port: 3344 });
+
+// Get port from environment variable or use default
+const port = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
+
+// Create server
+const server = serve({
+  fetch: app.fetch,
+  port,
+}) as unknown as Server; // Type assertion to handle Hono's server type
+
+console.log(`Server is running on http://localhost:${port}`);
+
+// Set up WebSocket
 setupWebSocket(server);
+
+// Handle process termination
+process.on('SIGTERM', () => {
+  console.log('SIGTERM received. Shutting down gracefully...');
+  server.close(() => {
+    console.log('Server closed');
+    process.exit(0);
+  });
+});
 console.log("Running at http://localhost:3344")
-      
