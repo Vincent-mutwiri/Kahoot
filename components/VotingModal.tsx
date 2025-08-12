@@ -12,6 +12,7 @@ import { Progress } from './Progress';
 import { Avatar, AvatarFallback } from './Avatar';
 import { Skeleton } from './Skeleton';
 import { useVoteState, useCastVoteMutation, useEndVotingMutation } from '../helpers/voteQueries';
+import { useWebSocket } from '../helpers/useWebSocket';
 import { Crown, Vote, CheckCircle2, XCircle } from 'lucide-react';
 import styles from './VotingModal.module.css';
 import { toast } from 'sonner';
@@ -27,6 +28,14 @@ interface VotingModalProps {
   currentPlayerId: string;
   isHost: boolean;
   canVote: boolean;
+  /** Optional list of candidates supplied externally. Falls back to API if omitted */
+  candidates?: { id: string; username: string }[];
+  /** Optional tallies supplied externally. Falls back to API if omitted */
+  tallies?: { playerId: string; votes: number; username: string }[];
+  /** Remaining time in seconds supplied externally */
+  countdown?: number;
+  /** Callback invoked when vote results are received */
+  onVoteResult?: (winnerId: string | null | undefined) => void;
   className?: string;
 }
 
@@ -38,21 +47,28 @@ export const VotingModal: React.FC<VotingModalProps> = ({
   currentPlayerId,
   isHost,
   canVote,
+  candidates: externalCandidates,
+  tallies: externalTallies,
+  countdown,
+  onVoteResult,
   className,
 }) => {
-  const [timeLeft, setTimeLeft] = useState(VOTE_DURATION_SECONDS);
+  const [timeLeft, setTimeLeft] = useState(countdown ?? VOTE_DURATION_SECONDS);
   const [votedForPlayerId, setVotedForPlayerId] = useState<string | null>(null);
   const [isClosing, setIsClosing] = useState(false);
 
   const { data: voteState, isLoading, error } = useVoteState(
     { roundId },
-    { enabled: isOpen && !!roundId }
+    { enabled: isOpen && !!roundId && !externalCandidates && !externalTallies }
   );
+
+  const [liveTallies, setLiveTallies] = useState(externalTallies);
+  const [liveCandidates, setLiveCandidates] = useState(externalCandidates);
 
   const castVoteMutation = useCastVoteMutation();
   const endVotingMutation = useEndVotingMutation();
 
-  const isVotingActive = voteState?.status === 'active' && timeLeft > 0;
+  const isVotingActive = (voteState?.status === 'active' || !!liveCandidates) && timeLeft > 0;
   const isVotingComplete = voteState?.status === 'completed';
 
   useEffect(() => {
@@ -60,11 +76,28 @@ export const VotingModal: React.FC<VotingModalProps> = ({
       // Reset state when modal opens for a new round
       setVotedForPlayerId(null);
       setIsClosing(false);
-      if (voteState?.timeRemaining) {
+      setLiveTallies(externalTallies);
+      setLiveCandidates(externalCandidates);
+      if (countdown !== undefined) {
+        setTimeLeft(countdown);
+      } else if (voteState?.timeRemaining) {
         setTimeLeft(voteState.timeRemaining);
       }
     }
-  }, [isOpen, roundId, voteState?.timeRemaining]);
+  }, [isOpen, roundId, voteState?.timeRemaining, countdown, externalTallies, externalCandidates]);
+
+  // Update live data when props change while modal is open
+  useEffect(() => {
+    if (externalTallies) setLiveTallies(externalTallies);
+  }, [externalTallies]);
+
+  useEffect(() => {
+    if (externalCandidates) setLiveCandidates(externalCandidates);
+  }, [externalCandidates]);
+
+  useEffect(() => {
+    if (countdown !== undefined) setTimeLeft(countdown);
+  }, [countdown]);
 
   useEffect(() => {
     if (!isVotingActive || !isOpen) return;
@@ -86,13 +119,12 @@ export const VotingModal: React.FC<VotingModalProps> = ({
 
   // Automatically close modal after results are shown
   useEffect(() => {
-    if (isVotingComplete && !isClosing) {
-      setIsClosing(true);
-      const closeTimer = setTimeout(() => {
-        onClose();
-      }, 5000); // Close after 5 seconds
-      return () => clearTimeout(closeTimer);
-    }
+    if (!isVotingComplete || isClosing) return;
+    setIsClosing(true);
+    const closeTimer = setTimeout(() => {
+      onClose();
+    }, 5000);
+    return () => clearTimeout(closeTimer);
   }, [isVotingComplete, onClose, isClosing]);
 
   const handleVote = (candidateId: string) => {
@@ -113,22 +145,41 @@ export const VotingModal: React.FC<VotingModalProps> = ({
     );
   };
 
+  const tallies = liveTallies ?? voteState?.voteTallies ?? [];
+  const candidates = liveCandidates ?? voteState?.eligibleCandidates ?? [];
+
   const totalVotes = useMemo(() => {
-    return voteState?.voteTallies.reduce((sum, tally) => sum + tally.votes, 0) || 0;
-  }, [voteState?.voteTallies]);
+    return tallies.reduce((sum, tally) => sum + tally.votes, 0);
+  }, [tallies]);
 
   const redeemedPlayer = useMemo(() => {
     if (!isVotingComplete || !endVotingMutation.data?.redeemedPlayer) return null;
     return endVotingMutation.data.redeemedPlayer;
   }, [isVotingComplete, endVotingMutation.data]);
 
-  const renderContent = () => {
-    if (isLoading) return <VotingSkeleton />;
-    if (error) return <div className={styles.errorState}><XCircle /> {error.message}</div>;
-    if (!voteState) return <VotingSkeleton />;
+  // Listen for real-time updates via websocket
+  useWebSocket(gameCode, (message) => {
+    if (message.roundId !== roundId) return;
+    if (message.type === 'VOTE_TALLY' && message.tallies) {
+      setLiveTallies(message.tallies);
+      if (typeof message.timeRemaining === 'number') {
+        setTimeLeft(message.timeRemaining);
+      }
+    }
+    if (message.type === 'VOTE_RESULT') {
+      onVoteResult?.(message.winnerId);
+      onClose();
+    }
+  });
 
-    if (isVotingComplete) {
-      return <VotingResults voteState={voteState} redeemedPlayer={redeemedPlayer} />;
+  const renderContent = () => {
+    if (!externalCandidates) {
+      if (isLoading) return <VotingSkeleton />;
+      if (error) return <div className={styles.errorState}><XCircle /> {error.message}</div>;
+      if (!voteState) return <VotingSkeleton />;
+      if (isVotingComplete) {
+        return <VotingResults voteState={voteState} redeemedPlayer={redeemedPlayer} />;
+      }
     }
 
     return (
@@ -146,8 +197,8 @@ export const VotingModal: React.FC<VotingModalProps> = ({
         </div>
 
         <div className={styles.candidatesList}>
-          {voteState.eligibleCandidates.map((candidate) => {
-            const tally = voteState.voteTallies.find(t => t.playerId === String(candidate.id));
+          {candidates.map((candidate) => {
+            const tally = tallies.find(t => t.playerId === String(candidate.id));
             const votes = tally?.votes || 0;
             const votePercentage = totalVotes > 0 ? (votes / totalVotes) * 100 : 0;
             const hasVotedForThisPlayer = votedForPlayerId === String(candidate.id);

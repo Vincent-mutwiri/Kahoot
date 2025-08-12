@@ -26,6 +26,7 @@ const GamePage: React.FC = () => {
   const [username, setUsername] = useState<string | null>(null);
   const [isVotingModalOpen, setIsVotingModalOpen] = useState(false);
   const [activeVotingRoundId, setActiveVotingRoundId] = useState<string | null>(null);
+  const [showRedeemedClip, setShowRedeemedClip] = useState(false);
 
   const hideMediaMutation = usePlayerHideMediaMutation();
 
@@ -33,18 +34,30 @@ const GamePage: React.FC = () => {
   useWebSocket(gameCode!, (message) => {
     if (message.gameCode !== gameCode) return;
     
-    // Handle voting-related WebSocket messages
-    if (message.type === 'open_vote' && message.roundId) {
+    if (message.type === 'VOTING_STARTED' && message.roundId) {
       setActiveVotingRoundId(String(message.roundId));
       setIsVotingModalOpen(true);
       return;
     }
     
-    if (message.type === 'vote_result') {
+    if (message.type === 'VOTE_RESULT' || message.type === 'VOTING_ENDED') {
       setActiveVotingRoundId(null);
       setIsVotingModalOpen(false);
-      refetch(); // Refresh game state after voting ends
+      const winnerId = message.winnerId || message.redeemedPlayerId;
+      if (winnerId) {
+        setShowRedeemedClip(true);
+        setTimeout(() => {
+          setShowRedeemedClip(false);
+          refetch();
+        }, 5000);
+      } else {
+        refetch();
+      }
+      return;
     }
+    
+    // For all other updates, refetch state
+    refetch();
   });
 
   useEffect(() => {
@@ -164,6 +177,16 @@ const GamePage: React.FC = () => {
     }
 
     const { game, player, players, currentQuestion, questionStartTimeMs } = data;
+
+    if (showRedeemedClip) {
+      return (
+        <div className={styles.sequenceView}>
+          <video src="/media/redeemed.mp4" autoPlay className={styles.sequenceVideo} />
+          <h2>Redeemed!</h2>
+          <p>Waiting for next round...</p>
+        </div>
+      );
+    }
 
     // Handle intermission and modal states
     if (phase === 'Intermission_Elims') {
