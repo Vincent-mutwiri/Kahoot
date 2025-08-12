@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet';
 import { usePlayerConnection } from '../helpers/usePlayerConnection';
 import { usePlayerHideMediaMutation } from '../helpers/playerQueries';
-import { useWebSocket } from '../helpers/useWebSocket';
+import { useRoundFlow } from '../helpers/useRoundFlow';
 import { VotingModal } from '../components/VotingModal';
 import { GamePageSkeleton } from '../components/GamePageSkeleton';
 import { LobbyView } from '../components/LobbyView';
@@ -17,7 +17,6 @@ import { SoundPlayer } from '../components/SoundPlayer';
 import { IntermissionElims } from '../components/IntermissionElims';
 import { IntermissionSurv } from '../components/IntermissionSurv';
 import { RoundResultsModal } from '../components/RoundResultsModal';
-import { useRoundFlow } from '../helpers/useRoundFlow';
 import styles from './game.$gameCode.module.css';
 
 const GamePage: React.FC = () => {
@@ -25,28 +24,8 @@ const GamePage: React.FC = () => {
   const navigate = useNavigate();
   const [username, setUsername] = useState<string | null>(null);
   const [isVotingModalOpen, setIsVotingModalOpen] = useState(false);
-  const [activeVotingRoundId, setActiveVotingRoundId] = useState<string | null>(null);
 
-  // Voting is handled via VotingModal and voteQueries; no direct POST here
   const hideMediaMutation = usePlayerHideMediaMutation();
-
-  // WebSocket for real-time updates
-  useWebSocket(gameCode!, (message) => {
-    if (message.gameCode !== gameCode) return;
-    // If server announces a voting round start with roundId, open the modal
-    if (message.type === 'VOTING_STARTED' && message.roundId) {
-      setActiveVotingRoundId(String(message.roundId));
-      setIsVotingModalOpen(true);
-      return;
-    }
-    // If voting ends, close modal
-    if (message.type === 'VOTING_ENDED') {
-      setActiveVotingRoundId(null);
-      setIsVotingModalOpen(false);
-    }
-    // For all other updates, refetch state
-    refetch();
-  });
 
   useEffect(() => {
     if (!gameCode) {
@@ -70,9 +49,15 @@ const GamePage: React.FC = () => {
     { enabled: !!gameCode && !!username }
   );
 
-  const roundFlow = useRoundFlow(data?.game, data?.players ?? []);
+  const { phase, votingRoundId } = useRoundFlow({
+    gameCode: gameCode!,
+    eliminationVideoUrl: data?.game.eliminationVideoUrl,
+    onUpdate: refetch,
+  });
 
-  // Client no longer simulates voting rounds; reacts to WS messages
+  useEffect(() => {
+    setIsVotingModalOpen(phase === 'Voting');
+  }, [phase]);
 
   const handleJoin = (newUsername: string) => {
     localStorage.setItem(`lps_username_${gameCode!}`, newUsername);
@@ -89,8 +74,8 @@ const GamePage: React.FC = () => {
     if (!error) return null;
     
     const isConnectionError = error.message?.includes('fetch') || 
-                             error.message?.includes('network') ||
-                             error.message?.includes('Failed to');
+                           error.message?.includes('network') ||
+                           error.message?.includes('Failed to');
     
     if (isConnectionError) {
       return {
@@ -158,144 +143,70 @@ const GamePage: React.FC = () => {
     }
 
     const { game, player, players, currentQuestion, questionStartTimeMs } = data;
-    if (roundFlow.phase === 'Intermission_Elims') {
-      const isEliminated =
-        player.status === 'eliminated' &&
-        player.eliminatedRound === game.currentQuestionIndex;
+
+    // Handle intermission and modal states
+    if (phase === 'Intermission_Elims') {
+      const isEliminated = player.status === 'eliminated' && 
+                         player.eliminatedRound === game.currentQuestionIndex;
       return (
         <IntermissionElims
-          videoUrl={(game as any).eliminationVideoUrl}
-          eliminatedPlayers={roundFlow.eliminatedPlayers}
+          videoUrl={game.eliminationVideoUrl}
+          eliminatedPlayers={players.filter(p => 
+            p.status === 'eliminated' && p.eliminatedRound === game.currentQuestionIndex
+          )}
           isEliminated={isEliminated}
         />
       );
     }
-    if (roundFlow.phase === 'Intermission_Surv') {
+
+    if (phase === 'Intermission_Surv') {
+      const survivors = players.filter(p => p.status === 'active' || p.status === 'redeemed');
       return (
         <IntermissionSurv
-          videoUrl={(game as any).survivorVideoUrl}
-          survivors={roundFlow.survivors}
+          videoUrl={game.survivorVideoUrl}
+          survivors={survivors}
           prizePot={game.currentPrizePot}
-          everyoneSurvives={roundFlow.everyoneSurvives}
+          everyoneSurvives={survivors.length === players.length}
         />
       );
     }
-    if (roundFlow.phase === 'ResultsModal') {
+
+    if (phase === 'ResultsModal') {
       return (
         <RoundResultsModal
-          survivors={roundFlow.survivors}
-          eliminated={roundFlow.eliminatedPlayers}
+          survivors={players.filter(p => p.status === 'active' || p.status === 'redeemed')}
+          eliminated={players.filter(p => p.status === 'eliminated')}
         />
       );
     }
 
-    // State machine based on gameState
-    switch (game.gameState || game.status) {
-      case 'lobby':
-        return <LobbyView game={game} players={players} />;
-
-      case 'question':
-      case 'active': // Handle both gameState and status
-        if (currentQuestion) {
-          return (
-            <QuestionView
-              game={game}
-              player={player}
-              players={players}
-              currentQuestion={currentQuestion}
-              questionStartTimeMs={questionStartTimeMs || null}
-              isSpectator={player.status === 'eliminated'}
-            />
-          );
-        }
-        // If game is active but no current question, show waiting state
-        if (game.status === 'active') {
-          return (
-            <div className={styles.centeredMessage}>
-              <h2 className={styles.heading}>Game Started!</h2>
-              <p>Question will appear automatically...</p>
-              {player.status === 'eliminated' && (
-                <p className={styles.eliminatedMessage}>
-                  You are eliminated but can watch the game
-                </p>
-              )}
-              <div className={styles.subtleLoader}>
-                <div className={styles.subtleSpinner}></div>
-                <span>Loading...</span>
-              </div>
-            </div>
-          );
-        }
-        break;
-
-      case 'leaderboard':
-        const sortedPlayers = [...players].sort(
-          (a, b) => (b.score || 0) - (a.score || 0)
-        );
-        return (
-          <div className={styles.leaderboardView}>
-            <h2>Leaderboard</h2>
-            <ol>
-              {sortedPlayers.map((p) => (
-                <li
-                  key={p.id}
-                  className={p.status === 'active' ? styles.survivor : ''}
-                >
-                  {p.username} - {p.score || 0} points
-                </li>
-              ))}
-            </ol>
-          </div>
-        );
-
-      case 'redemption':
-        const currentRoundEliminated = players.filter(
-          (p) => p.status === 'eliminated' && p.eliminatedRound === game.currentQuestionIndex
-        );
-        return (
-          <div className={styles.redemptionView}>
-            {(game as any).redemptionVideoUrl && (
-              <video
-                src={(game as any).redemptionVideoUrl}
-                autoPlay
-                className={styles.sequenceVideo}
-              />
-            )}
-            <h2>Redemption Vote</h2>
-            {player.status === 'eliminated' ? (
-              <div>
-                <p>You are eliminated - watching the redemption vote</p>
-                <p className={styles.eliminatedMessage}>
-                  You could be redeemed by survivors!
-                </p>
-                <p className={styles.autoMessage}>
-                  Voting ends automatically in 20 seconds
-                </p>
-              </div>
-            ) : (
-              <div>
-                <p>Waiting for survivors to vote...</p>
-                <p className={styles.autoMessage}>
-                  Voting ends automatically in 20 seconds
-                </p>
-              </div>
-            )}
-          </div>
-        );
+    // Handle main game states
+    if (game.status === 'lobby') {
+      return <LobbyView game={game} players={players} />;
     }
 
-    // Fallback states
-    if (game.status === 'finished' && player.status === 'active') {
-      return <WinnerView prize={game.currentPrizePot} />;
-    }
-
-    // Eliminated players continue to see game flow but as spectators
-    // They only see EliminatedView if game is in lobby or finished
-    if (player.status === 'eliminated' && (game.status === 'lobby' || game.status === 'finished')) {
+    if (game.status === 'finished') {
+      if (player.status === 'active') {
+        return <WinnerView prize={game.currentPrizePot} />;
+      }
       return <EliminatedView game={game} players={players} currentQuestion={currentQuestion} />;
     }
 
-    // Fallback / Waiting for next question
+    // Handle question/answer flow
+    if (phase === 'Question' && currentQuestion) {
+      return (
+        <QuestionView
+          game={game}
+          player={player}
+          players={players}
+          currentQuestion={currentQuestion}
+          questionStartTimeMs={questionStartTimeMs || null}
+          isSpectator={player.status === 'eliminated'}
+        />
+      );
+    }
+
+    // Default loading/transition state
     return (
       <div className={styles.centeredMessage}>
         <h2 className={styles.heading}>Waiting for the next round...</h2>
@@ -334,12 +245,11 @@ const GamePage: React.FC = () => {
         {data && <MediaOverlay mediaUrl={data.game.mediaUrl} onClose={handleHideMedia} />}
         {data && <SoundPlayer soundId={data.game.soundId} gameCode={gameCode!} />}
 
-        {/* Voting Modal Overlay */}
-        {data && activeVotingRoundId && (
+        {data && votingRoundId && (
           <VotingModal
             isOpen={isVotingModalOpen}
             onClose={() => setIsVotingModalOpen(false)}
-            roundId={activeVotingRoundId}
+            roundId={votingRoundId}
             gameCode={gameCode!}
             currentPlayerId={String(data.player.id)}
             isHost={false}
