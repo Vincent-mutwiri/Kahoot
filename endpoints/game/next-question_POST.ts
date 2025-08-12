@@ -74,12 +74,25 @@ export async function handle(request: Request): Promise<Response> {
     await currentGame.save();
 
     console.log(`[Game ${gameCode}] Successfully advanced to question ${currentGame.currentQuestionIndex}`);
-    // Push update to all clients in this game
-    broadcastToGame(gameCode, { type: 'NEXT_QUESTION', gameCode, questionIndex: currentGame.currentQuestionIndex });
-    broadcastToGame(gameCode, { type: 'GAME_STATE_CHANGED', gameCode, gameState: 'question' });
+    
+    // Send combined broadcast messages to all clients
+    broadcastToGame(gameCode, {
+      type: 'next_round',
+      roundId: currentGame.currentQuestionIndex.toString(),
+      questionId: currentGame.currentQuestionIndex,
+      answerWindowMs: QUESTION_TIME_LIMIT_MS,
+    });
+    
+    broadcastToGame(gameCode, { 
+      type: 'GAME_STATE_CHANGED', 
+      gameCode,
+      gameState: 'question',
+      questionIndex: currentGame.currentQuestionIndex 
+    });
+
     return new Response(superjson.stringify(currentGame.toObject() satisfies OutputType));
   } catch (error) {
-        console.error("Error advancing to next question:", error);
+    console.error("Error advancing to next question:", error);
     const errorMessage = error instanceof Error ? error.message : "An unexpected error occurred.";
     return new Response(superjson.stringify({ error: errorMessage }), { status: 400 });
   }

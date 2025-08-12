@@ -4,6 +4,7 @@ import { Helmet } from 'react-helmet';
 import { usePlayerConnection } from '../helpers/usePlayerConnection';
 import { usePlayerHideMediaMutation } from '../helpers/playerQueries';
 import { useRoundFlow } from '../helpers/useRoundFlow';
+import { useWebSocket } from '../hooks/useWebSocket';
 import { VotingModal } from '../components/VotingModal';
 import { GamePageSkeleton } from '../components/GamePageSkeleton';
 import { LobbyView } from '../components/LobbyView';
@@ -24,8 +25,27 @@ const GamePage: React.FC = () => {
   const navigate = useNavigate();
   const [username, setUsername] = useState<string | null>(null);
   const [isVotingModalOpen, setIsVotingModalOpen] = useState(false);
+  const [activeVotingRoundId, setActiveVotingRoundId] = useState<string | null>(null);
 
   const hideMediaMutation = usePlayerHideMediaMutation();
+
+  // WebSocket for real-time updates
+  useWebSocket(gameCode!, (message) => {
+    if (message.gameCode !== gameCode) return;
+    
+    // Handle voting-related WebSocket messages
+    if (message.type === 'open_vote' && message.roundId) {
+      setActiveVotingRoundId(String(message.roundId));
+      setIsVotingModalOpen(true);
+      return;
+    }
+    
+    if (message.type === 'vote_result') {
+      setActiveVotingRoundId(null);
+      setIsVotingModalOpen(false);
+      refetch(); // Refresh game state after voting ends
+    }
+  });
 
   useEffect(() => {
     if (!gameCode) {
@@ -55,6 +75,7 @@ const GamePage: React.FC = () => {
     onUpdate: refetch,
   });
 
+  // Sync voting modal state with phase changes
   useEffect(() => {
     setIsVotingModalOpen(phase === 'Voting');
   }, [phase]);
@@ -222,6 +243,7 @@ const GamePage: React.FC = () => {
   };
 
   const shouldShowConnectionStatus = username && connectionStatus !== 'connecting';
+  const currentVotingRoundId = activeVotingRoundId || votingRoundId;
 
   return (
     <>
@@ -245,11 +267,11 @@ const GamePage: React.FC = () => {
         {data && <MediaOverlay mediaUrl={data.game.mediaUrl} onClose={handleHideMedia} />}
         {data && <SoundPlayer soundId={data.game.soundId} gameCode={gameCode!} />}
 
-        {data && votingRoundId && (
+        {data && currentVotingRoundId && (
           <VotingModal
             isOpen={isVotingModalOpen}
             onClose={() => setIsVotingModalOpen(false)}
-            roundId={votingRoundId}
+            roundId={currentVotingRoundId}
             gameCode={gameCode!}
             currentPlayerId={String(data.player.id)}
             isHost={false}

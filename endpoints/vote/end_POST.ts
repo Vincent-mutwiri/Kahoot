@@ -59,9 +59,14 @@ async function endVote(roundId: string, hostName: string): Promise<OutputType> {
   round.redeemedPlayerId = winnerId;
   await round.save();
 
-  // Notify clients voting has ended
+  // Notify clients with vote result
   if (round.gameId?.code) {
-    broadcastToGame(round.gameId.code, { type: 'VOTING_ENDED', gameCode: round.gameId.code, roundId: round._id.toString(), redeemedPlayerId: winnerId?.toString() });
+    broadcastToGame(round.gameId.code, {
+      type: 'vote_result',
+      gameCode: round.gameId.code,
+      roundId: round._id.toString(),
+      winner: redeemedPlayer ? { playerId: redeemedPlayer._id.toString(), username: redeemedPlayer.username } : null,
+    });
   }
 
   // 6. Get final tallies for the response
