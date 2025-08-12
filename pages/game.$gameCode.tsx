@@ -14,6 +14,10 @@ import { JoinGamePrompt } from '../components/JoinGamePrompt';
 import { ConnectionStatus } from '../components/ConnectionStatus';
 import { MediaOverlay } from '../components/MediaOverlay';
 import { SoundPlayer } from '../components/SoundPlayer';
+import { IntermissionElims } from '../components/IntermissionElims';
+import { IntermissionSurv } from '../components/IntermissionSurv';
+import { RoundResultsModal } from '../components/RoundResultsModal';
+import { useRoundFlow } from '../helpers/useRoundFlow';
 import styles from './game.$gameCode.module.css';
 
 const GamePage: React.FC = () => {
@@ -54,17 +58,19 @@ const GamePage: React.FC = () => {
     setUsername(storedUsername);
   }, [gameCode, navigate]);
 
-  const { 
-    data, 
-    isFetching, 
-    error, 
-    connectionStatus, 
-    lastUpdated, 
-    refetch 
+  const {
+    data,
+    isFetching,
+    error,
+    connectionStatus,
+    lastUpdated,
+    refetch
   } = usePlayerConnection(
     { gameCode: gameCode!, username: username! },
     { enabled: !!gameCode && !!username }
   );
+
+  const roundFlow = useRoundFlow(data?.game, data?.players ?? []);
 
   // Client no longer simulates voting rounds; reacts to WS messages
 
@@ -152,23 +158,55 @@ const GamePage: React.FC = () => {
     }
 
     const { game, player, players, currentQuestion, questionStartTimeMs } = data;
+    if (roundFlow.phase === 'Intermission_Elims') {
+      const isEliminated =
+        player.status === 'eliminated' &&
+        player.eliminatedRound === game.currentQuestionIndex;
+      return (
+        <IntermissionElims
+          videoUrl={(game as any).eliminationVideoUrl}
+          eliminatedPlayers={roundFlow.eliminatedPlayers}
+          isEliminated={isEliminated}
+        />
+      );
+    }
+    if (roundFlow.phase === 'Intermission_Surv') {
+      return (
+        <IntermissionSurv
+          videoUrl={(game as any).survivorVideoUrl}
+          survivors={roundFlow.survivors}
+          prizePot={game.currentPrizePot}
+          everyoneSurvives={roundFlow.everyoneSurvives}
+        />
+      );
+    }
+    if (roundFlow.phase === 'ResultsModal') {
+      return (
+        <RoundResultsModal
+          survivors={roundFlow.survivors}
+          eliminated={roundFlow.eliminatedPlayers}
+        />
+      );
+    }
 
     // State machine based on gameState
     switch (game.gameState || game.status) {
       case 'lobby':
         return <LobbyView game={game} players={players} />;
-        
+
       case 'question':
       case 'active': // Handle both gameState and status
         if (currentQuestion) {
-          return <QuestionView 
-            game={game} 
-            player={player} 
-            players={players} 
-            currentQuestion={currentQuestion} 
-            questionStartTimeMs={questionStartTimeMs || null}
-            isSpectator={player.status === 'eliminated'}
-          />;
+          return (
+            <QuestionView
+              game={game}
+              player={player}
+              players={players}
+              currentQuestion={currentQuestion}
+              questionStartTimeMs={questionStartTimeMs || null}
+              isSpectator={player.status === 'eliminated'}
+            />
+          );
         }
         // If game is active but no current question, show waiting state
         if (game.status === 'active') {
@@ -177,7 +215,9 @@ const GamePage: React.FC = () => {
               <h2 className={styles.heading}>Game Started!</h2>
               <p>Question will appear automatically...</p>
               {player.status === 'eliminated' && (
-                <p className={styles.eliminatedMessage}>You are eliminated but can watch the game</p>
+                <p className={styles.eliminatedMessage}>
+                  You are eliminated but can watch the game
+                </p>
               )}
               <div className={styles.subtleLoader}>
                 <div className={styles.subtleSpinner}></div>
@@ -187,80 +227,59 @@ const GamePage: React.FC = () => {
           );
         }
         break;
-        
-      case 'elimination':
-        const eliminatedPlayers = players.filter(p => p.status === 'eliminated' && p.eliminatedRound === game.currentQuestionIndex);
-        return (
-          <div className={styles.sequenceView}>
-            {game.eliminationVideoUrl && (
-              <video src={game.eliminationVideoUrl} autoPlay className={styles.sequenceVideo} />
-            )}
-            <h2>Players Eliminated</h2>
-            <ul>
-              {eliminatedPlayers.map(p => <li key={p.id}>{p.username}</li>)}
-            </ul>
-            <p className={styles.autoMessage}>Continuing automatically...</p>
-          </div>
-        );
-        
-      case 'survivors':
-        const survivors = players.filter(p => p.status === 'active' || p.status === 'redeemed');
-        return (
-          <div className={styles.sequenceView}>
-            {game.survivorVideoUrl && (
-              <video src={game.survivorVideoUrl} autoPlay className={styles.sequenceVideo} />
-            )}
-            <h2>Survivors</h2>
-            <ul>
-              {survivors.map(p => <li key={p.id}>{p.username}</li>)}
-            </ul>
-            <p className={styles.autoMessage}>Moving to redemption...</p>
-          </div>
-        );
-        
+
       case 'leaderboard':
-        const sortedPlayers = [...players].sort((a, b) => (b.score || 0) - (a.score || 0));
+        const sortedPlayers = [...players].sort(
+          (a, b) => (b.score || 0) - (a.score || 0)
+        );
         return (
           <div className={styles.leaderboardView}>
             <h2>Leaderboard</h2>
             <ol>
-              {sortedPlayers.map(p => (
-                <li key={p.id} className={p.status === 'active' ? styles.survivor : ''}>
+              {sortedPlayers.map((p) => (
+                <li
+                  key={p.id}
+                  className={p.status === 'active' ? styles.survivor : ''}
+                >
                   {p.username} - {p.score || 0} points
                 </li>
               ))}
             </ol>
           </div>
         );
-        
+
       case 'redemption':
-        const currentRoundEliminated = players.filter(p => p.status === 'eliminated' && p.eliminatedRound === game.currentQuestionIndex);
+        const currentRoundEliminated = players.filter(
+          (p) => p.status === 'eliminated' && p.eliminatedRound === game.currentQuestionIndex
+        );
         return (
           <div className={styles.redemptionView}>
-            {game.redemptionVideoUrl && (
-              <video src={game.redemptionVideoUrl} autoPlay className={styles.sequenceVideo} />
+            {(game as any).redemptionVideoUrl && (
+              <video
+                src={(game as any).redemptionVideoUrl}
+                autoPlay
+                className={styles.sequenceVideo}
+              />
             )}
             <h2>Redemption Vote</h2>
             {player.status === 'eliminated' ? (
               <div>
                 <p>You are eliminated - watching the redemption vote</p>
-                <p className={styles.eliminatedMessage}>You could be redeemed by survivors!</p>
-                <p className={styles.autoMessage}>Voting ends automatically in 20 seconds</p>
+                <p className={styles.eliminatedMessage}>
+                  You could be redeemed by survivors!
+                </p>
+                <p className={styles.autoMessage}>
+                  Voting ends automatically in 20 seconds
+                </p>
               </div>
             ) : (
               <div>
                 <p>Waiting for survivors to vote...</p>
-                <p className={styles.autoMessage}>Voting ends automatically in 20 seconds</p>
+                <p className={styles.autoMessage}>
+                  Voting ends automatically in 20 seconds
+                </p>
               </div>
             )}
-          </div>
-        );
-        
-      case 'round_results':
-        return (
-          <div className={styles.resultsView}>
-            <h2>Round Results</h2>
-            <p>Preparing next question...</p>
           </div>
         );
     }
