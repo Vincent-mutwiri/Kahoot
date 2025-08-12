@@ -5,7 +5,7 @@ import { Vote } from "../../lib/models/Vote";
 import { schema, OutputType } from "./cast_POST.schema";
 import superjson from 'superjson';
 
-async function castVote(roundId: number, voterPlayerId: number, votedForPlayerId: number): Promise<OutputType> {
+async function castVote(roundId: string, voterPlayerId: string, votedForPlayerId: string): Promise<OutputType> {
   // 1. Validate the redemption round
   const round = await RedemptionRound.findById(roundId);
 

@@ -1,6 +1,7 @@
 import { connectToDatabase } from '../../lib/db/mongodb.js';
 import { Game } from '../../lib/models/Game.js';
 import { Player } from '../../lib/models/Player.js';
+import { broadcastToGame } from '../../lib/websocket.js';
 
 export async function handle(request: Request): Promise<Response> {
   try {
@@ -27,6 +28,9 @@ export async function handle(request: Request): Promise<Response> {
 
     game.gameState = newState;
     await game.save();
+
+    // Broadcast state change so clients refresh promptly
+    broadcastToGame(gameCode, { type: 'GAME_STATE_CHANGED', gameCode, gameState: newState });
 
     return new Response(JSON.stringify({ success: true, gameState: newState }), {
       headers: { 'Content-Type': 'application/json' },

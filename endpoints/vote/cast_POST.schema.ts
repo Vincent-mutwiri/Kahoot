@@ -2,9 +2,9 @@ import { z } from "zod";
 import superjson from 'superjson';
 
 export const schema = z.object({
-  roundId: z.number().int().positive("Invalid round ID"),
-  voterPlayerId: z.number().int().positive("Invalid voter player ID"),
-  votedForPlayerId: z.number().int().positive("Invalid candidate player ID"),
+  roundId: z.union([z.string().min(1), z.number().int().positive()]).transform((v) => v.toString()),
+  voterPlayerId: z.union([z.string().min(1), z.number().int().positive()]).transform((v) => v.toString()),
+  votedForPlayerId: z.union([z.string().min(1), z.number().int().positive()]).transform((v) => v.toString()),
 });
 
 export type InputType = z.infer<typeof schema>;

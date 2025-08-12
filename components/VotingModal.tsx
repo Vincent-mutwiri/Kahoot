@@ -22,9 +22,9 @@ const VOTE_DURATION_SECONDS = 20;
 interface VotingModalProps {
   isOpen: boolean;
   onClose: () => void;
-  roundId: number;
+  roundId: string;
   gameCode: string;
-  currentPlayerId: number;
+  currentPlayerId: string;
   isHost: boolean;
   canVote: boolean;
   className?: string;
@@ -41,12 +41,12 @@ export const VotingModal: React.FC<VotingModalProps> = ({
   className,
 }) => {
   const [timeLeft, setTimeLeft] = useState(VOTE_DURATION_SECONDS);
-  const [votedForPlayerId, setVotedForPlayerId] = useState<number | null>(null);
+  const [votedForPlayerId, setVotedForPlayerId] = useState<string | null>(null);
   const [isClosing, setIsClosing] = useState(false);
 
   const { data: voteState, isLoading, error } = useVoteState(
     { roundId },
-    { enabled: isOpen && roundId > 0 }
+    { enabled: isOpen && !!roundId }
   );
 
   const castVoteMutation = useCastVoteMutation();
@@ -82,12 +82,7 @@ export const VotingModal: React.FC<VotingModalProps> = ({
     return () => clearInterval(timer);
   }, [isVotingActive, isOpen]);
 
-  // Automatically end voting for host when timer runs out
-  useEffect(() => {
-    if (timeLeft === 0 && isHost && voteState?.status === 'active') {
-      endVotingMutation.mutate({ roundId, hostName: 'host', gameCode }); // Assuming a placeholder for hostName
-    }
-  }, [timeLeft, isHost, voteState?.status, roundId, gameCode, endVotingMutation]);
+  // Host can end voting manually; server auto-flow also ends voting
 
   // Automatically close modal after results are shown
   useEffect(() => {
@@ -100,17 +95,12 @@ export const VotingModal: React.FC<VotingModalProps> = ({
     }
   }, [isVotingComplete, onClose, isClosing]);
 
-  const handleVote = (candidateId: number) => {
+  const handleVote = (candidateId: string) => {
     if (!canVote || votedForPlayerId !== null || !isVotingActive) return;
 
     setVotedForPlayerId(candidateId);
     castVoteMutation.mutate(
-      {
-        roundId,
-        voterPlayerId: currentPlayerId,
-        votedForPlayerId: candidateId,
-        gameCode,
-      },
+          { roundId, voterPlayerId: currentPlayerId, votedForPlayerId: candidateId, gameCode },
       {
         onSuccess: () => {
           toast.success('Your vote has been cast!');
@@ -157,10 +147,10 @@ export const VotingModal: React.FC<VotingModalProps> = ({
 
         <div className={styles.candidatesList}>
           {voteState.eligibleCandidates.map((candidate) => {
-            const tally = voteState.voteTallies.find(t => t.playerId === candidate.id);
+            const tally = voteState.voteTallies.find(t => t.playerId === String(candidate.id));
             const votes = tally?.votes || 0;
             const votePercentage = totalVotes > 0 ? (votes / totalVotes) * 100 : 0;
-            const hasVotedForThisPlayer = votedForPlayerId === candidate.id;
+            const hasVotedForThisPlayer = votedForPlayerId === String(candidate.id);
 
             return (
               <div key={candidate.id} className={`${styles.candidateItem} ${hasVotedForThisPlayer ? styles.votedFor : ''}`}>
@@ -177,7 +167,7 @@ export const VotingModal: React.FC<VotingModalProps> = ({
                 {canVote && (
                   <Button
                     size="sm"
-                    onClick={() => handleVote(candidate.id)}
+                    onClick={() => handleVote(String(candidate.id))}
                     disabled={!isVotingActive || votedForPlayerId !== null || castVoteMutation.isPending}
                     className={styles.voteButton}
                   >

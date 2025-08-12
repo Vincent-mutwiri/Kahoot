@@ -4,14 +4,14 @@ import { Selectable } from "kysely";
 import { Players } from "../../helpers/schema";
 
 export const schema = z.object({
-  roundId: z.number().int().positive("Invalid round ID"),
+  roundId: z.union([z.string().min(1), z.number().int().positive()]).transform((v) => v.toString()),
   hostName: z.string().min(1, "Host name is required"),
 });
 
 export type InputType = z.infer<typeof schema>;
 
 export type VoteTally = {
-  playerId: number;
+  playerId: string; // Mongoose ObjectId as string
   username: string;
   votes: number;
 };

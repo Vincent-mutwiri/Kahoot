@@ -11,7 +11,7 @@ export const schema = z.object({
 export type InputType = z.infer<typeof schema>;
 
 export type OutputType = {
-  roundId: number;
+  roundId: string; // Mongoose ObjectId as string
   endsAt: Date;
   eligiblePlayers: Pick<Selectable<Players>, 'id' | 'username'>[];
 };

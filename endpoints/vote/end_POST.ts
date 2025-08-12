@@ -5,8 +5,9 @@ import { RedemptionRound } from "../../lib/models/RedemptionRound";
 import { Vote } from "../../lib/models/Vote";
 import { schema, OutputType, VoteTally } from "./end_POST.schema";
 import superjson from 'superjson';
+import { broadcastToGame } from "../../lib/websocket.js";
 
-async function endVote(roundId: number, hostName: string): Promise<OutputType> {
+async function endVote(roundId: string, hostName: string): Promise<OutputType> {
   // 1. Validate round and host
   const round = await RedemptionRound.findById(roundId).populate('gameId');
 
@@ -57,6 +58,11 @@ async function endVote(roundId: number, hostName: string): Promise<OutputType> {
   round.status = 'completed';
   round.redeemedPlayerId = winnerId;
   await round.save();
+
+  // Notify clients voting has ended
+  if (round.gameId?.code) {
+    broadcastToGame(round.gameId.code, { type: 'VOTING_ENDED', gameCode: round.gameId.code, roundId: round._id.toString(), redeemedPlayerId: winnerId?.toString() });
+  }
 
   // 6. Get final tallies for the response
   const eligibleCandidates = await Player.find({

@@ -102,8 +102,8 @@ interface MasterControlsProps {
   game: Selectable<Games>;
   hostName: string;
   players: Selectable<Players>[];
-  currentVotingRoundId: number | null;
-  onStartVoting: (roundId: number) => void;
+  currentVotingRoundId: string | null;
+  onStartVoting: (roundId: string) => void;
 }
 
 const MasterControls = ({ game, hostName, players, currentVotingRoundId, onStartVoting }: MasterControlsProps) => {
@@ -538,7 +538,7 @@ export default function HostDashboardPage() {
   const { gameCode } = useParams<{ gameCode: string }>();
   const navigate = useNavigate();
   const [hostName, setHostName] = useState<string | null>(null);
-  const [currentVotingRoundId, setCurrentVotingRoundId] = useState<number | null>(null);
+  const [currentVotingRoundId, setCurrentVotingRoundId] = useState<string | null>(null);
 
   useEffect(() => {
     const storedHostName = localStorage.getItem(HOST_NAME_STORAGE_KEY);
@@ -650,7 +650,7 @@ export default function HostDashboardPage() {
             onClose={() => setCurrentVotingRoundId(null)}
             roundId={currentVotingRoundId}
             gameCode={gameCode}
-            currentPlayerId={0} // Host doesn't have a player ID
+            currentPlayerId={''} // Host doesn't have a player ID
             isHost={true}
             canVote={false} // Host cannot vote
             className={styles.hostVotingModal}

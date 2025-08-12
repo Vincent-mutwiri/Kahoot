@@ -10,7 +10,7 @@ export async function handle(request: Request): Promise<Response> {
     await dbConnect();
     const url = new URL(request.url);
     const { roundId } = schema.parse({
-      roundId: url.searchParams.get('roundId'),
+      roundId: url.searchParams.get('roundId') ?? '',
     });
 
     // 1. Get the redemption round details

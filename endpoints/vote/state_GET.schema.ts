@@ -4,16 +4,13 @@ import { Selectable } from "kysely";
 import { Players, RedemptionRoundStatus, RedemptionRoundStatusArrayValues } from "../../helpers/schema";
 
 export const schema = z.object({
-  roundId: z.preprocess(
-    (val) => (typeof val === 'string' ? parseInt(val, 10) : val),
-    z.number().int().positive("Round ID must be a positive integer")
-  ),
+  roundId: z.string().min(1, 'Round ID is required'),
 });
 
 export type InputType = z.infer<typeof schema>;
 
 export type VoteTally = {
-  playerId: number;
+  playerId: string; // Mongoose ObjectId as string
   username: string;
   votes: number;
 };

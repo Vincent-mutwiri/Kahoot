@@ -1,21 +1,53 @@
 import "./loadEnv.js";
-import { Hono } from 'hono'
-import { serveStatic } from '@hono/node-server/serve-static'
+import { Hono } from 'hono';
+import { serveStatic } from '@hono/node-server/serve-static';
 import { serve } from '@hono/node-server';
 import { setupWebSocket } from './lib/websocket.js';
 import fs from 'fs';
+import path from 'path';
 
-const logStream = fs.createWriteStream('./server.log', { flags: 'a' });
-console.log = function (d) {
-  logStream.write(new Date().toISOString() + ' ' + d + '\n');
-  process.stdout.write(new Date().toISOString() + ' ' + d + '\n');
-};
-console.error = function (d) {
-  logStream.write(new Date().toISOString() + ' [ERROR] ' + d + '\n');
-  process.stderr.write(new Date().toISOString() + ' [ERROR] ' + d + '\n');
+// Set up logging
+const logDir = process.env.NODE_ENV === 'production' ? '/tmp' : '.';
+const logStream = fs.createWriteStream(path.join(logDir, 'server.log'), { flags: 'a' });
+
+// Override console.log and console.error to write to both file and stdout/stderr
+const originalConsoleLog = console.log;
+const originalConsoleError = console.error;
+
+console.log = function (...args) {
+  const message = args.map(arg => typeof arg === 'object' ? JSON.stringify(arg) : arg).join(' ');
+  logStream.write(`${new Date().toISOString()} ${message}\n`);
+  originalConsoleLog.apply(console, args as [any?, ...any[]]);
 };
 
-const app = new Hono();
+console.error = function (...args) {
+  const message = args.map(arg => arg instanceof Error ? arg.stack : typeof arg === 'object' ? JSON.stringify(arg) : arg).join(' ');
+  logStream.write(`${new Date().toISOString()} [ERROR] ${message}\n`);
+  originalConsoleError.apply(console, args as [any?, ...any[]]);
+};
+
+// Add type declarations for process
+interface NodeProcess extends NodeJS.Process {
+  on(event: string, listener: (...args: any[]) => void): this;
+}
+
+declare const process: NodeProcess;
+
+// Handle uncaught exceptions
+process.on('uncaughtException', (error: Error) => {
+  console.error('Uncaught Exception:', error);
+});
+
+// Handle unhandled promise rejections
+process.on('unhandledRejection', (reason: any, promise: Promise<any>) => {
+  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+});
+
+export const app = new Hono();
+
+// Export the handler for Vercel
+const handler = app.fetch;
+export { handler };
 
 app.post('/_api/game/create',async c => {
   try {
@@ -407,36 +439,7 @@ app.post('/_api/game/advance-state', async c => {
     return c.json({ error: `Error loading endpoint code: ${errorMessage}` }, 500);
   }
 })
-app.post('/_api/vote/redemption', async c => {
-  try {
-    const { handle } = await import("./endpoints/vote/redemption_POST.js");
-    let request = c.req.raw;
-    const response = await handle(request);
-    if (!(response instanceof Response)) {
-      return c.text("Invalid response format. handle should always return a Response object.", 500);
-    }
-    return response;
-  } catch (e) {
-    console.error(e);
-    const errorMessage = e instanceof Error ? e.message : 'Unknown error';
-    return c.json({ error: `Error loading endpoint code: ${errorMessage}` }, 500);
-  }
-})
-app.post('/_api/vote/end-redemption', async c => {
-  try {
-    const { handle } = await import("./endpoints/vote/end-redemption_POST.js");
-    let request = c.req.raw;
-    const response = await handle(request);
-    if (!(response instanceof Response)) {
-      return c.text("Invalid response format. handle should always return a Response object.", 500);
-    }
-    return response;
-  } catch (e) {
-    console.error(e);
-    const errorMessage = e instanceof Error ? e.message : 'Unknown error';
-    return c.json({ error: `Error loading endpoint code: ${errorMessage}` }, 500);
-  }
-})
+// Deprecated endpoints removed: vote/redemption and vote/end-redemption
 app.get('/_api/settings/get-global-videos', async c => {
   try {
     const { handle } = await import("./endpoints/settings/get-global-videos_GET.js");

@@ -2,6 +2,7 @@ import dbConnect from "../../lib/db/connect";
 import { Game } from "../../lib/models/Game";
 import { Player } from "../../lib/models/Player";
 import { RedemptionRound } from "../../lib/models/RedemptionRound";
+import { broadcastToGame } from "../../lib/websocket.js";
 import { schema, OutputType } from "./start_POST.schema";
 import superjson from 'superjson';
 
@@ -57,6 +58,9 @@ async function startVote(gameCode: string, hostName: string): Promise<OutputType
   await newRound.save();
 
   console.log(`Redemption round ${newRound._id} started for game ${gameCode}, question ${game.currentQuestionIndex}`);
+
+  // Notify clients with the new round id to open voting modal
+  broadcastToGame(gameCode, { type: 'VOTING_STARTED', gameCode, roundId: newRound._id.toString() });
 
   return {
     roundId: newRound._id.toString(),

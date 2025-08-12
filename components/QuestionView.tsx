@@ -124,7 +124,7 @@ export const QuestionView: React.FC<QuestionViewProps> = ({
           <div className={`${styles.timer} ${getTimerColor()}`}>{remainingSeconds}</div>
           <Progress value={remainingPercentage} className={`${styles.progressBar} ${getTimerColor()}`} />
         </div>
-        <PlayerList players={players} />
+        <PlayerList players={players.map((p, i) => ({ ...p, id: p.id || `player-${i}` }))} />
       </aside>
     </div>
   );

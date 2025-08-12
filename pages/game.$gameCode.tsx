@@ -21,30 +21,27 @@ const GamePage: React.FC = () => {
   const navigate = useNavigate();
   const [username, setUsername] = useState<string | null>(null);
   const [isVotingModalOpen, setIsVotingModalOpen] = useState(false);
-  const [activeVotingRoundId, setActiveVotingRoundId] = useState<number | null>(null);
+  const [activeVotingRoundId, setActiveVotingRoundId] = useState<string | null>(null);
 
-  const voteForRedemption = async (targetPlayerId: string) => {
-    try {
-      await fetch('/_api/vote/redemption', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          gameCode,
-          voterUsername: username,
-          targetPlayerId
-        })
-      });
-    } catch (error) {
-      console.error('Failed to vote for redemption:', error);
-    }
-  };
+  // Voting is handled via VotingModal and voteQueries; no direct POST here
   const hideMediaMutation = usePlayerHideMediaMutation();
 
   // WebSocket for real-time updates
   useWebSocket(gameCode!, (message) => {
-    if (message.gameCode === gameCode) {
-      refetch();
+    if (message.gameCode !== gameCode) return;
+    // If server announces a voting round start with roundId, open the modal
+    if (message.type === 'VOTING_STARTED' && message.roundId) {
+      setActiveVotingRoundId(String(message.roundId));
+      setIsVotingModalOpen(true);
+      return;
     }
+    // If voting ends, close modal
+    if (message.type === 'VOTING_ENDED') {
+      setActiveVotingRoundId(null);
+      setIsVotingModalOpen(false);
+    }
+    // For all other updates, refetch state
+    refetch();
   });
 
   useEffect(() => {
@@ -69,28 +66,7 @@ const GamePage: React.FC = () => {
     { enabled: !!gameCode && !!username }
   );
 
-  useEffect(() => {
-    if (!data) {
-      return;
-    }
-    const { game, players } = data;
-    // Look for any recent eliminations that might trigger a voting round
-    // This is a simplified check - in practice, the backend should provide voting round info
-    const recentlyEliminatedPlayers = players.filter(p => p.status === 'eliminated' && p.eliminatedRound === game.currentQuestionIndex);
-    const hasRecentEliminations = recentlyEliminatedPlayers.length > 0;
-    
-    // For now, we'll simulate checking for an active voting round
-    // In the real implementation, this data should come from the game state
-    if (hasRecentEliminations && game.status === 'active') {
-      // Simulate a voting round ID based on current question
-      const simulatedRoundId = (game.currentQuestionIndex || 0) * 1000 + game.id;
-      setActiveVotingRoundId(simulatedRoundId);
-      setIsVotingModalOpen(true);
-    } else {
-      setActiveVotingRoundId(null);
-      setIsVotingModalOpen(false);
-    }
-  }, [data, setActiveVotingRoundId, setIsVotingModalOpen]);
+  // Client no longer simulates voting rounds; reacts to WS messages
 
   const handleJoin = (newUsername: string) => {
     localStorage.setItem(`lps_username_${gameCode!}`, newUsername);
@@ -265,17 +241,7 @@ const GamePage: React.FC = () => {
               <video src={game.redemptionVideoUrl} autoPlay className={styles.sequenceVideo} />
             )}
             <h2>Redemption Vote</h2>
-            {player.status === 'active' ? (
-              <div>
-                <p>Vote quickly to save one eliminated player:</p>
-                {currentRoundEliminated.map(p => (
-                  <button key={p.id} onClick={() => voteForRedemption(p.id)}>
-                    Save {p.username}
-                  </button>
-                ))}
-                <p className={styles.autoMessage}>Voting ends automatically in 20 seconds</p>
-              </div>
-            ) : player.status === 'eliminated' ? (
+            {player.status === 'eliminated' ? (
               <div>
                 <p>You are eliminated - watching the redemption vote</p>
                 <p className={styles.eliminatedMessage}>You could be redeemed by survivors!</p>
@@ -356,7 +322,7 @@ const GamePage: React.FC = () => {
             onClose={() => setIsVotingModalOpen(false)}
             roundId={activeVotingRoundId}
             gameCode={gameCode!}
-            currentPlayerId={data.player.id}
+            currentPlayerId={String(data.player.id)}
             isHost={false}
             canVote={data.player.status === 'active'}
             className={styles.votingModalOverlay}
