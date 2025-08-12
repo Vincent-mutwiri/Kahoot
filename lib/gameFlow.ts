@@ -1,6 +1,6 @@
 import { Game } from './models/Game.js';
-import { Game as GameModel } from './models/Game.js';
 import { broadcastToGame } from './websocket.js';
+import { Game } from './models/Game.js';
 import { RedemptionRound } from './models/RedemptionRound.js';
 import { Player } from './models/Player.js';
 
@@ -13,7 +13,7 @@ const TIMERS = {
 };
 
 export async function startAutoFlow(gameCode: string) {
-  const game = await GameModel.findOne({ code: gameCode });
+  const game = await Game.findOne({ code: gameCode });
   if (!game || game.status !== 'active') return;
 
   // Start question timer
@@ -21,7 +21,7 @@ export async function startAutoFlow(gameCode: string) {
 }
 
 async function autoRevealAnswer(gameCode: string) {
-  const game = await GameModel.findOne({ code: gameCode });
+  const game = await Game.findOne({ code: gameCode });
   if (!game || game.status !== 'active') return;
 
   broadcastToGame(gameCode, { type: 'REVEAL_ANSWER', gameCode });
@@ -31,7 +31,7 @@ async function autoRevealAnswer(gameCode: string) {
 }
 
 async function autoAdvanceToElimination(gameCode: string) {
-  const game = await GameModel.findOne({ code: gameCode });
+  const game = await Game.findOne({ code: gameCode });
   if (!game) return;
 
   game.gameState = 'elimination';
@@ -43,7 +43,7 @@ async function autoAdvanceToElimination(gameCode: string) {
 }
 
 async function autoAdvanceToSurvivors(gameCode: string) {
-  const game = await GameModel.findOne({ code: gameCode });
+  const game = await Game.findOne({ code: gameCode });
   if (!game) return;
 
   game.gameState = 'survivors';
@@ -55,7 +55,7 @@ async function autoAdvanceToSurvivors(gameCode: string) {
 }
 
 async function autoAdvanceToRedemption(gameCode: string) {
-  const game = await GameModel.findOne({ code: gameCode });
+  const game = await Game.findOne({ code: gameCode });
   if (!game) return;
 
   game.gameState = 'redemption';
@@ -101,7 +101,7 @@ async function autoStartVoting(gameCode: string) {
 }
 
 async function autoNextQuestion(gameCode: string) {
-  const game = await GameModel.findOne({ code: gameCode });
+  const game = await Game.findOne({ code: gameCode });
   if (!game) return;
 
   // If there is an active redemption round for the current question, end it automatically

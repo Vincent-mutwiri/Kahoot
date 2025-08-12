@@ -14,7 +14,7 @@
   },
   "scripts": {
     "dev": "vite",
-    "build": "vite build && tsc --project tsconfig.json --outDir dist --module esnext --moduleResolution node",
+    "build": "vite build && tsc --project tsconfig.build.json --outDir dist --module esnext --moduleResolution node",
     "vercel-build": "pnpm build",
     "preview": "vite preview --port 3000",
     "server": "tsx watch --clear-screen=false server.ts",
