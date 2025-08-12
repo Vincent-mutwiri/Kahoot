@@ -278,8 +278,8 @@ const PlayerList = ({ players }: { players: Selectable<Players>[] }) => {
             <Users size={18} /> Active Players ({activePlayers.length})
           </h4>
           <ul>
-            {activePlayers.map(player => (
-              <li key={`active-${player.id}`} className={styles.playerItem}>
+            {activePlayers.map((player, index) => (
+              <li key={`active-${player._id || player.id || index}`} className={styles.playerItem}>
                 <span>{player.username}</span>
                 <Badge variant={player.status === 'redeemed' ? 'secondary' : 'success'}>
                   {player.status}
@@ -294,8 +294,8 @@ const PlayerList = ({ players }: { players: Selectable<Players>[] }) => {
             <UserX size={18} /> Eliminated Players ({eliminatedPlayers.length})
           </h4>
           <ul>
-            {eliminatedPlayers.map(player => (
-              <li key={`eliminated-${player.id}`} className={styles.playerItem}>
+            {eliminatedPlayers.map((player, index) => (
+              <li key={`eliminated-${player._id || player.id || index}`} className={styles.playerItem}>
                 <span>{player.username}</span>
                 <Badge variant="destructive">{player.status}</Badge>
               </li>

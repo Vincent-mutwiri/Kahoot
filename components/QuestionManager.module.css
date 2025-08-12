@@ -317,3 +317,89 @@
   display: flex;
   gap: var(--spacing-2);
 }
+
+.tabsContainer {
+  display: flex;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: var(--spacing-4);
+}
+
+.tab {
+  padding: var(--spacing-3) var(--spacing-4);
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-size: 1rem;
+  color: var(--muted-foreground);
+  border-bottom: 2px solid transparent;
+  transition: all var(--animation-duration-fast) ease;
+}
+
+.tab:hover {
+  color: var(--foreground);
+}
+
+.activeTab {
+  color: var(--primary);
+  border-bottom-color: var(--primary);
+  font-weight: 600;
+}
+
+.toolbar {
+  display: flex;
+  gap: var(--spacing-3);
+  align-items: center;
+  margin-bottom: var(--spacing-4);
+  flex-wrap: wrap;
+}
+
+.searchInput {
+  min-width: 200px;
+}
+
+.filterSelect {
+  padding: var(--spacing-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--background);
+  color: var(--foreground);
+}
+
+.globalQuestionCard {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--spacing-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  margin-bottom: var(--spacing-2);
+  transition: all var(--animation-duration-fast) ease;
+}
+
+.globalQuestionCard:hover {
+  border-color: var(--primary);
+}
+
+.globalQuestionCard.selected {
+  background-color: color-mix(in srgb, var(--primary) 10%, transparent);
+  border-color: var(--primary);
+}
+
+.questionCardLeft {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-3);
+  flex: 1;
+}
+
+.questionCardLeft h4 {
+  margin: 0;
+  font-size: 1rem;
+  color: var(--foreground);
+}
+
+.questionCardRight {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+}

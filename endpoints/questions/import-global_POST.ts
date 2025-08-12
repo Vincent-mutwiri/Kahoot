@@ -6,28 +6,37 @@ import { Game } from '../../lib/models/Game.js';
 export async function handle(request: Request): Promise<Response> {
   try {
     const { gameCode, hostName, questionIds } = await request.json();
+    console.log('Import request:', { gameCode, hostName, questionIds });
 
     await connectToDatabase();
 
     const game = await Game.findOne({ code: gameCode, hostName });
     if (!game) {
+      console.log('Game not found:', { gameCode, hostName });
       return new Response(JSON.stringify({ error: 'Game not found' }), { status: 404 });
     }
+    console.log('Game found:', game._id);
 
     const globalQuestions = await GlobalQuestion.find({ _id: { $in: questionIds } });
+    console.log('Global questions found:', globalQuestions.length);
     
     for (const globalQ of globalQuestions) {
+      console.log('Processing global question:', globalQ._id);
       const existingCount = await Question.countDocuments({ gameId: game._id });
       
       const question = new Question({
         gameId: game._id,
         questionIndex: existingCount,
         questionText: globalQ.questionText,
-        answers: globalQ.answers,
-        correctAnswerIndex: globalQ.correctAnswerIndex,
-        mediaUrl: globalQ.mediaUrl
+        optionA: globalQ.answers?.[0] || '',
+        optionB: globalQ.answers?.[1] || '',
+        optionC: globalQ.answers?.[2] || '',
+        optionD: globalQ.answers?.[3] || '',
+        correctAnswer: ['A', 'B', 'C', 'D'][globalQ.correctAnswerIndex] || 'A',
+        isGlobal: true
       });
       
+      console.log('Saving question:', question);
       await question.save();
     }
 
@@ -36,6 +45,7 @@ export async function handle(request: Request): Promise<Response> {
     });
   } catch (error) {
     console.error('Error importing global questions:', error);
-    return new Response(JSON.stringify({ error: 'Failed to import questions' }), { status: 500 });
+    console.error('Error stack:', error.stack);
+    return new Response(JSON.stringify({ error: error.message || 'Failed to import questions' }), { status: 500 });
   }
 }

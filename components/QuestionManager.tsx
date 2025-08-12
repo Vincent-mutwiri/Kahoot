@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useQuestions, useAddQuestion, useUpdateQuestion, useDeleteQuestion } from '../helpers/questionQueries';
 import { Button } from './Button';
+import { Input } from './Input';
 import { Skeleton } from './Skeleton';
 import { AlertTriangle, CheckCircle, Edit, Plus, Trash2, XCircle, Download } from 'lucide-react';
 import styles from './QuestionManager.module.css';
@@ -158,6 +159,9 @@ export const QuestionManager: React.FC<QuestionManagerProps> = ({
   const [selectedGlobalQuestions, setSelectedGlobalQuestions] = useState<string[]>([]);
   const [selectedGameQuestions, setSelectedGameQuestions] = useState<string[]>([]);
   const [selectionMode, setSelectionMode] = useState(false);
+  const [activeTab, setActiveTab] = useState<'game' | 'global'>('game');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterStatus, setFilterStatus] = useState<'all' | 'played' | 'unplayed'>('all');
 
   const { data: questions, isFetching, error } = useQuestions({ gameCode, hostName });
 
@@ -271,6 +275,133 @@ export const QuestionManager: React.FC<QuestionManagerProps> = ({
 
   const sortedQuestions = questions ? [...questions].sort((a, b) => a.questionIndex - b.questionIndex) : [];
 
+  const filteredGameQuestions = sortedQuestions.filter(q => {
+    const matchesSearch = q.questionText.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesFilter = filterStatus === 'all' || 
+      (filterStatus === 'played' && currentQuestionIndex !== null && q.questionIndex <= currentQuestionIndex) ||
+      (filterStatus === 'unplayed' && (currentQuestionIndex === null || q.questionIndex > currentQuestionIndex));
+    return matchesSearch && matchesFilter;
+  });
+
+  const filteredGlobalQuestions = globalQuestions.filter((q: any) => 
+    q.questionText.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const renderGameQuestions = () => {
+    if (isFetching && !questions) {
+      return <QuestionManagerSkeleton />;
+    }
+
+    if (error) {
+      return (
+        <div className={styles.errorState}>
+          <AlertTriangle size={48} />
+          <h3>Error Loading Questions</h3>
+          <p>{error.message}</p>
+        </div>
+      );
+    }
+
+    if (!filteredGameQuestions || filteredGameQuestions.length === 0) {
+      return (
+        <div className={styles.emptyState}>
+          <h3>No Questions Yet</h3>
+          <p>Get started by adding the first question for your game.</p>
+          <Button onClick={() => setAddModalOpen(true)}>
+            <Plus size={16} /> Add First Question
+          </Button>
+        </div>
+      );
+    }
+
+    return (
+      <div className={styles.questionsList}>
+        {filteredGameQuestions.map((q) => {
+          const questionId = q._id;
+          return (
+            <QuestionItem
+              key={questionId}
+              question={q}
+              isPlayed={currentQuestionIndex !== null && q.questionIndex <= currentQuestionIndex}
+              onEdit={() => setEditingQuestion(q)}
+              onDelete={() => setDeletingQuestion(q)}
+              selectionMode={true}
+              isSelected={selectedGameQuestions.includes(questionId)}
+              onSelect={(id) => {
+                if (id && selectedGameQuestions.includes(id)) {
+                  setSelectedGameQuestions(prev => prev.filter(existingId => existingId !== id));
+                } else if (id) {
+                  setSelectedGameQuestions(prev => [...prev, id]);
+                }
+              }}
+            />
+          );
+        })}
+      </div>
+    );
+  };
+
+  const renderGlobalQuestions = () => {
+    if (filteredGlobalQuestions.length === 0) {
+      return (
+        <div className={styles.emptyState}>
+          <h3>No Global Questions Yet</h3>
+          <p>Create your first global question to share with other hosts.</p>
+        </div>
+      );
+    }
+
+    return (
+      <div className={styles.questionsList}>
+        {filteredGlobalQuestions.map((q: any, index: number) => (
+          <div 
+            key={q._id || `global-q-${index}`} 
+            className={`${styles.globalQuestionCard} ${selectedGlobalQuestions.includes(q._id) ? styles.selected : ''}`}
+          >
+            <div className={styles.questionCardLeft}>
+              <input
+                type="checkbox"
+                checked={selectedGlobalQuestions.includes(q._id)}
+                onChange={() => {
+                  if (selectedGlobalQuestions.includes(q._id)) {
+                    setSelectedGlobalQuestions(prev => prev.filter(id => id !== q._id));
+                  } else {
+                    setSelectedGlobalQuestions(prev => [...prev, q._id]);
+                  }
+                }}
+              />
+              <div>
+                <h4>{q.questionText}</h4>
+              </div>
+            </div>
+            <div className={styles.questionCardRight}>
+              <Badge variant="secondary">Global</Badge>
+              <Button 
+                size="sm" 
+                variant="outline"
+                onClick={async (e) => {
+                  e.stopPropagation();
+                  try {
+                    await fetch('/_api/questions/import-global', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ gameCode, hostName, questionIds: [q._id] })
+                    });
+                    toast.success('Question added to game!');
+                  } catch (error) {
+                    toast.error('Failed to add question to game');
+                  }
+                }}
+              >
+                Add to Game
+              </Button>
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  };
+
   const renderContent = () => {
     if (isFetching && !questions) {
       return <QuestionManagerSkeleton />;
@@ -328,111 +459,170 @@ export const QuestionManager: React.FC<QuestionManagerProps> = ({
   return (
     <div className={`${styles.container} ${className || ''}`}>
       <div className={styles.managerHeader}>
-        <h2 className={styles.managerTitle}>Question Bank</h2>
-        <div className={styles.headerButtons}>
-          <Button 
-            onClick={() => setSelectionMode(!selectionMode)}
-            variant={selectionMode ? "destructive" : "outline"}
-            size="lg"
+        <div className={styles.tabsContainer}>
+          <button 
+            className={`${styles.tab} ${activeTab === 'game' ? styles.activeTab : ''}`}
+            onClick={() => setActiveTab('game')}
           >
-            {selectionMode ? 'Cancel Selection' : 'Select Questions'}
-          </Button>
-          {selectionMode && (
-            <Button 
-              onClick={() => {
-                if (selectedGameQuestions.length === sortedQuestions.length) {
-                  setSelectedGameQuestions([]);
-                } else {
-                  setSelectedGameQuestions(sortedQuestions.map(q => q._id));
-                }
-              }}
-              variant="secondary"
-              size="sm"
-            >
-              {selectedGameQuestions.length === sortedQuestions.length ? 'Deselect All' : 'Select All'}
-            </Button>
-          )}
-          <Button 
+            Game Questions ({sortedQuestions?.length || 0})
+          </button>
+          <button 
+            className={`${styles.tab} ${activeTab === 'global' ? styles.activeTab : ''}`}
             onClick={() => {
-              console.log('Import Questions clicked');
-              setGlobalBankOpen(true);
-            }} 
-            variant="secondary"
-            size="lg"
+              setActiveTab('global');
+              if (globalQuestions.length === 0) loadGlobalQuestions();
+            }}
           >
-            <Download size={16} /> Import Questions
-          </Button>
-          <Dialog open={isAddModalOpen} onOpenChange={setAddModalOpen}>
-            <DialogTrigger asChild>
-              <Button size="lg">
-                <Plus size={16} /> Add Question
+            Global Bank ({globalQuestions?.length || 0})
+          </button>
+        </div>
+        
+        <div className={styles.toolbar}>
+          <Input
+            placeholder="Search questions..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className={styles.searchInput}
+          />
+          
+          <select 
+            value={filterStatus} 
+            onChange={(e) => setFilterStatus(e.target.value as any)}
+            className={styles.filterSelect}
+          >
+            <option value="all">All</option>
+            <option value="played">Played</option>
+            <option value="unplayed">Unplayed</option>
+          </select>
+          
+          {activeTab === 'game' && (
+            <>
+              <Button 
+                onClick={() => setGlobalBankOpen(true)} 
+                variant="secondary"
+              >
+                <Download size={16} /> Import from Global
               </Button>
-            </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Add a New Question</DialogTitle>
-              <DialogDescription>
-                Craft a new challenge for your players. Make it a good one!
-              </DialogDescription>
-            </DialogHeader>
-            <QuestionForm
-              onSubmit={handleAddQuestion}
-              onCancel={() => setAddModalOpen(false)}
-              isSubmitting={addMutation.isPending}
-              submitButtonText="Add Question"
-              onSaveToGlobal={handleSaveToGlobal}
-            />
-          </DialogContent>
-        </Dialog>
+              <Dialog open={isAddModalOpen} onOpenChange={setAddModalOpen}>
+                <DialogTrigger asChild>
+                  <Button>
+                    <Plus size={16} /> Add Question
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Add a New Question</DialogTitle>
+                    <DialogDescription>
+                      Craft a new challenge for your players. Make it a good one!
+                    </DialogDescription>
+                  </DialogHeader>
+                  <QuestionForm
+                    onSubmit={handleAddQuestion}
+                    onCancel={() => setAddModalOpen(false)}
+                    isSubmitting={addMutation.isPending}
+                    submitButtonText="Add Question"
+                    onSaveToGlobal={handleSaveToGlobal}
+                  />
+                </DialogContent>
+              </Dialog>
+            </>
+          )}
         </div>
       </div>
-      {selectionMode && selectedGameQuestions.length > 0 && (
+      {(selectedGameQuestions.length > 0 || selectedGlobalQuestions.length > 0) && (
         <div className={styles.selectionActions}>
-          <span>{selectedGameQuestions.length} question{selectedGameQuestions.length !== 1 ? 's' : ''} selected</span>
+          <span>
+            {activeTab === 'game' ? selectedGameQuestions.length : selectedGlobalQuestions.length} question{(activeTab === 'game' ? selectedGameQuestions.length : selectedGlobalQuestions.length) !== 1 ? 's' : ''} selected
+          </span>
           <div className={styles.actionButtons}>
             <Button 
-              variant="destructive" 
+              variant="ghost" 
               size="sm"
               onClick={() => {
-                // Handle bulk delete
-                console.log('Delete selected questions:', selectedGameQuestions);
-              }}
-            >
-              Delete Selected
-            </Button>
-            <Button 
-              variant="outline" 
-              size="sm"
-              onClick={async () => {
-                try {
-                  const selectedQuestions = sortedQuestions.filter(q => selectedGameQuestions.includes(q._id));
-                  for (const question of selectedQuestions) {
-                    await fetch('/_api/questions/save-global', {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({
-                        questionText: question.questionText,
-                        answers: [question.optionA, question.optionB, question.optionC, question.optionD],
-                        correctAnswerIndex: ['A', 'B', 'C', 'D'].indexOf(question.correctAnswer),
-                        createdBy: hostName
-                      })
-                    });
-                  }
-                  toast.success(`${selectedQuestions.length} questions saved to global bank!`);
+                if (activeTab === 'game') {
                   setSelectedGameQuestions([]);
-                  setSelectionMode(false);
-                } catch (error) {
-                  toast.error('Failed to save questions to global bank');
+                } else {
+                  setSelectedGlobalQuestions([]);
                 }
               }}
             >
-              Save to Global Bank
+              Deselect All
             </Button>
+            {activeTab === 'game' && (
+              <>
+                <Button 
+                  variant="destructive" 
+                  size="sm"
+                  onClick={() => console.log('Delete from game')}
+                >
+                  Delete from Game
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={async () => {
+                    try {
+                      const selectedQuestions = sortedQuestions.filter(q => selectedGameQuestions.includes(q._id));
+                      for (const question of selectedQuestions) {
+                        await fetch('/_api/questions/save-global', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({
+                            questionText: question.questionText,
+                            answers: [question.optionA, question.optionB, question.optionC, question.optionD],
+                            correctAnswerIndex: ['A', 'B', 'C', 'D'].indexOf(question.correctAnswer),
+                            createdBy: hostName
+                          })
+                        });
+                      }
+                      toast.success(`${selectedQuestions.length} questions saved to global bank!`);
+                      setSelectedGameQuestions([]);
+                    } catch (error) {
+                      toast.error('Failed to save questions to global bank');
+                    }
+                  }}
+                >
+                  Add to Global
+                </Button>
+              </>
+            )}
+            {activeTab === 'global' && (
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={async () => {
+                  try {
+                    console.log('Adding questions to game:', { gameCode, hostName, questionIds: selectedGlobalQuestions });
+                    const response = await fetch('/_api/questions/import-global', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ gameCode, hostName, questionIds: selectedGlobalQuestions })
+                    });
+                    
+                    if (!response.ok) {
+                      const errorData = await response.text();
+                      console.error('Server error:', errorData);
+                      throw new Error(`Server error: ${response.status}`);
+                    }
+                    
+                    const result = await response.json();
+                    console.log('Import result:', result);
+                    toast.success(`${selectedGlobalQuestions.length} questions added to game!`);
+                    setSelectedGlobalQuestions([]);
+                  } catch (error) {
+                    console.error('Add to game error:', error);
+                    toast.error(`Failed to add questions to game: ${error.message}`);
+                  }
+                }}
+              >
+                Add to Game
+              </Button>
+            )}
           </div>
         </div>
       )}
       <Separator />
-      {renderContent()}
+      {activeTab === 'game' ? renderGameQuestions() : renderGlobalQuestions()}
 
       {/* Edit Dialog */}
       <Dialog open={!!editingQuestion} onOpenChange={(isOpen) => !isOpen && setEditingQuestion(null)}>

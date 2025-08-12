@@ -41,6 +41,10 @@ const JoinGameForm = () => {
   const onSubmit = (values: z.infer<typeof joinGameSchema>) => {
     joinGameMutation.mutate(values, {
       onSuccess: () => {
+        // Store username for the specific game
+        localStorage.setItem(`lps_username_${values.gameCode}`, values.username);
+        // Store username for the specific game
+        localStorage.setItem(`lps_username_${values.gameCode}`, values.username);
         toast.success(`Welcome, ${values.username}! Joining game...`);
         navigate(`/game/${values.gameCode}`);
       },
