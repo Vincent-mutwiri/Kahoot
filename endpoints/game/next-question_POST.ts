@@ -70,12 +70,13 @@ export async function handle(request: Request): Promise<Response> {
     // Update the game to the next question with a new timestamp
     currentGame.currentQuestionIndex = nextIndex;
     currentGame.updatedAt = new Date();
+    currentGame.gameState = 'question';
     await currentGame.save();
 
     console.log(`[Game ${gameCode}] Successfully advanced to question ${currentGame.currentQuestionIndex}`);
     // Push update to all clients in this game
     broadcastToGame(gameCode, { type: 'NEXT_QUESTION', gameCode, questionIndex: currentGame.currentQuestionIndex });
-    broadcastToGame(gameCode, { type: 'GAME_STATE_CHANGED', gameCode });
+    broadcastToGame(gameCode, { type: 'GAME_STATE_CHANGED', gameCode, gameState: 'question' });
     return new Response(superjson.stringify(currentGame.toObject() satisfies OutputType));
   } catch (error) {
         console.error("Error advancing to next question:", error);
