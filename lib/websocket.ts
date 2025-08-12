@@ -48,10 +48,23 @@ export function setupWebSocket(server: any) {
   return wss;
 }
 
+const messageCache = new Map<string, number>();
+
 export function broadcastToGame(gameCode: string, message: any) {
   const room = gameRooms.get(gameCode);
   if (!room) return;
 
+  // Prevent duplicate messages
+  const messageKey = `${gameCode}-${message.type}-${message.gameState || ''}`;
+  const now = Date.now();
+  const lastSent = messageCache.get(messageKey);
+  
+  if (lastSent && now - lastSent < 100) { // 100ms debounce
+    return;
+  }
+  
+  messageCache.set(messageKey, now);
+  
   const messageStr = JSON.stringify(message);
   room.clients.forEach(client => {
     if (client.readyState === 1) { // WebSocket.OPEN

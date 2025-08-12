@@ -26,15 +26,13 @@ export async function handle(request: Request): Promise<Response> {
 
     const activePlayers = await Player.find({ gameId: game._id, status: 'active' });
 
-    if (activePlayers.length !== 1) {
-      return new Response(superjson.stringify({ error: "Cannot end the game without a single winner." }), { status: 400 });
+    // If there's exactly one winner, distribute the prize
+    if (activePlayers.length === 1) {
+      const winner = activePlayers[0];
+      winner.balance += game.currentPrizePot;
+      await winner.save();
     }
-
-    const winner = activePlayers[0];
-
-    // Distribute the prize
-    winner.balance += game.currentPrizePot;
-    await winner.save();
+    // Allow manual game ending even without a single winner
 
     game.status = 'finished';
     await game.save();

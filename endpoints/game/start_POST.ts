@@ -3,6 +3,7 @@ import { Game } from "../../lib/models/Game";
 import { schema, OutputType } from "./start_POST.schema";
 import superjson from 'superjson';
 import { broadcastToGame } from "../../lib/websocket.js";
+import { startAutoFlow } from "../../lib/gameFlow.js";
 
 export async function handle(request: Request): Promise<Response> {
   try {
@@ -33,6 +34,9 @@ export async function handle(request: Request): Promise<Response> {
     // Notify players in this game
     broadcastToGame(gameCode, { type: 'GAME_STARTED', gameCode });
     broadcastToGame(gameCode, { type: 'GAME_STATE_CHANGED', gameCode });
+    
+    // Start automatic game flow
+    startAutoFlow(gameCode);
 
     return new Response(superjson.stringify(game.toObject() satisfies OutputType));
   } catch (error) {

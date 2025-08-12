@@ -279,7 +279,7 @@ const PlayerList = ({ players }: { players: Selectable<Players>[] }) => {
           </h4>
           <ul>
             {activePlayers.map((player, index) => (
-              <li key={`active-${player._id || player.id || index}`} className={styles.playerItem}>
+              <li key={`active-${player.id || player.username || index}`} className={styles.playerItem}>
                 <span>{player.username}</span>
                 <Badge variant={player.status === 'redeemed' ? 'secondary' : 'success'}>
                   {player.status}
@@ -295,7 +295,7 @@ const PlayerList = ({ players }: { players: Selectable<Players>[] }) => {
           </h4>
           <ul>
             {eliminatedPlayers.map((player, index) => (
-              <li key={`eliminated-${player._id || player.id || index}`} className={styles.playerItem}>
+              <li key={`eliminated-${player.id || player.username || index}`} className={styles.playerItem}>
                 <span>{player.username}</span>
                 <Badge variant="destructive">{player.status}</Badge>
               </li>

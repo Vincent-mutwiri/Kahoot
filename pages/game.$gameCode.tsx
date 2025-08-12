@@ -42,16 +42,6 @@ const GamePage: React.FC = () => {
 
   // WebSocket for real-time updates
   useWebSocket(gameCode!, (message) => {
-    console.log('WebSocket message received:', message);
-    if (message.type === 'GAME_STARTED') {
-      console.log('Game started via WebSocket');
-      refetch(); // Refresh game data
-    }
-    if (message.type === 'GAME_STATE_CHANGED') {
-      console.log('Game state changed:', message.gameState);
-      refetch(); // Refresh game data
-    }
-    // Refetch on any game-related message to ensure sync
     if (message.gameCode === gameCode) {
       refetch();
     }
@@ -200,7 +190,8 @@ const GamePage: React.FC = () => {
             player={player} 
             players={players} 
             currentQuestion={currentQuestion} 
-            questionStartTimeMs={questionStartTimeMs || null} 
+            questionStartTimeMs={questionStartTimeMs || null}
+            isSpectator={player.status === 'eliminated'}
           />;
         }
         // If game is active but no current question, show waiting state
@@ -208,13 +199,14 @@ const GamePage: React.FC = () => {
           return (
             <div className={styles.centeredMessage}>
               <h2 className={styles.heading}>Game Started!</h2>
-              <p>Waiting for the first question...</p>
-              {isFetching && (
-                <div className={styles.subtleLoader}>
-                  <div className={styles.subtleSpinner}></div>
-                  <span>Loading...</span>
-                </div>
+              <p>Question will appear automatically...</p>
+              {player.status === 'eliminated' && (
+                <p className={styles.eliminatedMessage}>You are eliminated but can watch the game</p>
               )}
+              <div className={styles.subtleLoader}>
+                <div className={styles.subtleSpinner}></div>
+                <span>Loading...</span>
+              </div>
             </div>
           );
         }
@@ -231,6 +223,7 @@ const GamePage: React.FC = () => {
             <ul>
               {eliminatedPlayers.map(p => <li key={p.id}>{p.username}</li>)}
             </ul>
+            <p className={styles.autoMessage}>Continuing automatically...</p>
           </div>
         );
         
@@ -245,6 +238,7 @@ const GamePage: React.FC = () => {
             <ul>
               {survivors.map(p => <li key={p.id}>{p.username}</li>)}
             </ul>
+            <p className={styles.autoMessage}>Moving to redemption...</p>
           </div>
         );
         
@@ -273,15 +267,25 @@ const GamePage: React.FC = () => {
             <h2>Redemption Vote</h2>
             {player.status === 'active' ? (
               <div>
-                <p>Vote to save one eliminated player:</p>
+                <p>Vote quickly to save one eliminated player:</p>
                 {currentRoundEliminated.map(p => (
                   <button key={p.id} onClick={() => voteForRedemption(p.id)}>
                     Save {p.username}
                   </button>
                 ))}
+                <p className={styles.autoMessage}>Voting ends automatically in 20 seconds</p>
+              </div>
+            ) : player.status === 'eliminated' ? (
+              <div>
+                <p>You are eliminated - watching the redemption vote</p>
+                <p className={styles.eliminatedMessage}>You could be redeemed by survivors!</p>
+                <p className={styles.autoMessage}>Voting ends automatically in 20 seconds</p>
               </div>
             ) : (
-              <p>Waiting for survivors to vote...</p>
+              <div>
+                <p>Waiting for survivors to vote...</p>
+                <p className={styles.autoMessage}>Voting ends automatically in 20 seconds</p>
+              </div>
             )}
           </div>
         );
@@ -300,7 +304,9 @@ const GamePage: React.FC = () => {
       return <WinnerView prize={game.currentPrizePot} />;
     }
 
-    if (player.status === 'eliminated') {
+    // Eliminated players continue to see game flow but as spectators
+    // They only see EliminatedView if game is in lobby or finished
+    if (player.status === 'eliminated' && (game.status === 'lobby' || game.status === 'finished')) {
       return <EliminatedView game={game} players={players} currentQuestion={currentQuestion} />;
     }
 
