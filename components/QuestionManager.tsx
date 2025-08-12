@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useQuestions, useAddQuestion, useUpdateQuestion, useDeleteQuestion } from '../helpers/questionQueries';
 import { Button } from './Button';
 import { Skeleton } from './Skeleton';
-import { AlertTriangle, CheckCircle, Edit, Plus, Trash2, XCircle } from 'lucide-react';
+import { AlertTriangle, CheckCircle, Edit, Plus, Trash2, XCircle, Download } from 'lucide-react';
 import styles from './QuestionManager.module.css';
 import type { Selectable } from 'kysely';
 import type { Games, Questions } from '../helpers/schema';
@@ -59,11 +59,25 @@ const QuestionItem: React.FC<{
   isPlayed: boolean;
   onEdit: (question: Question) => void;
   onDelete: (question: Question) => void;
-}> = ({ question, isPlayed, onEdit, onDelete }) => {
+  selectionMode?: boolean;
+  isSelected?: boolean;
+  onSelect?: (questionId: number) => void;
+}> = ({ question, isPlayed, onEdit, onDelete, selectionMode, isSelected, onSelect }) => {
   return (
-    <div className={styles.questionItem}>
+    <div className={`${styles.questionItem} ${isSelected ? styles.selectedQuestion : ''}`}>
       <div className={styles.questionHeader}>
         <div className={styles.questionTitle}>
+          {selectionMode && (
+            <input
+              type="checkbox"
+              checked={isSelected || false}
+              onChange={(e) => {
+                e.stopPropagation();
+                onSelect?.(question._id);
+              }}
+              className={styles.questionCheckbox}
+            />
+          )}
           <span className={styles.questionIndex}>Q{question.questionIndex + 1}</span>
           <p>{question.questionText}</p>
         </div>
@@ -79,6 +93,9 @@ const QuestionItem: React.FC<{
                 <Trash2 size={16} className={styles.deleteIcon} />
               </Button>
             </>
+          )}
+          {question.isGlobal && (
+            <Badge variant="secondary">Global</Badge>
           )}
         </div>
       </div>
@@ -136,6 +153,11 @@ export const QuestionManager: React.FC<QuestionManagerProps> = ({
   const [isAddModalOpen, setAddModalOpen] = useState(false);
   const [editingQuestion, setEditingQuestion] = useState<Question | null>(null);
   const [deletingQuestion, setDeletingQuestion] = useState<Question | null>(null);
+  const [isGlobalBankOpen, setGlobalBankOpen] = useState(false);
+  const [globalQuestions, setGlobalQuestions] = useState([]);
+  const [selectedGlobalQuestions, setSelectedGlobalQuestions] = useState<string[]>([]);
+  const [selectedGameQuestions, setSelectedGameQuestions] = useState<string[]>([]);
+  const [selectionMode, setSelectionMode] = useState(false);
 
   const { data: questions, isFetching, error } = useQuestions({ gameCode, hostName });
 
@@ -196,6 +218,57 @@ export const QuestionManager: React.FC<QuestionManagerProps> = ({
     );
   };
 
+  const handleSaveToGlobal = async (values: AddFormValues) => {
+    try {
+      await fetch('/_api/questions/save-global', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...values, createdBy: hostName })
+      });
+      
+      // Also save to game and mark as global
+      addMutation.mutate(
+        { ...values, gameCode, hostName, isGlobal: true },
+        {
+          onSuccess: () => {
+            toast.success('Question saved to global bank and added to game!');
+            setAddModalOpen(false);
+          },
+          onError: (err) => {
+            toast.error('Saved to global but failed to add to game');
+          },
+        },
+      );
+    } catch (error) {
+      toast.error('Failed to save to global bank');
+    }
+  };
+
+  const loadGlobalQuestions = async () => {
+    try {
+      const response = await fetch('/_api/questions/global-list');
+      const data = await response.json();
+      setGlobalQuestions(data.questions);
+    } catch (error) {
+      toast.error('Failed to load global questions');
+    }
+  };
+
+  const handleImportSelected = async () => {
+    try {
+      await fetch('/_api/questions/import-global', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ gameCode, hostName, questionIds: selectedGlobalQuestions })
+      });
+      toast.success(`Imported ${selectedGlobalQuestions.length} questions!`);
+      setGlobalBankOpen(false);
+      setSelectedGlobalQuestions([]);
+    } catch (error) {
+      toast.error('Failed to import questions');
+    }
+  };
+
   const sortedQuestions = questions ? [...questions].sort((a, b) => a.questionIndex - b.questionIndex) : [];
 
   const renderContent = () => {
@@ -227,15 +300,27 @@ export const QuestionManager: React.FC<QuestionManagerProps> = ({
 
     return (
       <div className={styles.questionsList}>
-        {sortedQuestions.map((q) => (
-          <QuestionItem
-            key={q.id}
-            question={q}
-            isPlayed={currentQuestionIndex !== null && q.questionIndex <= currentQuestionIndex}
-            onEdit={() => setEditingQuestion(q)}
-            onDelete={() => setDeletingQuestion(q)}
-          />
-        ))}
+        {sortedQuestions.map((q) => {
+          const questionId = q._id;
+          return (
+            <QuestionItem
+              key={questionId}
+              question={q}
+              isPlayed={currentQuestionIndex !== null && q.questionIndex <= currentQuestionIndex}
+              onEdit={() => setEditingQuestion(q)}
+              onDelete={() => setDeletingQuestion(q)}
+              selectionMode={selectionMode}
+              isSelected={selectedGameQuestions.includes(questionId)}
+              onSelect={(id) => {
+                if (id && selectedGameQuestions.includes(id)) {
+                  setSelectedGameQuestions(prev => prev.filter(existingId => existingId !== id));
+                } else if (id) {
+                  setSelectedGameQuestions(prev => [...prev, id]);
+                }
+              }}
+            />
+          );
+        })}
       </div>
     );
   };
@@ -244,12 +329,45 @@ export const QuestionManager: React.FC<QuestionManagerProps> = ({
     <div className={`${styles.container} ${className || ''}`}>
       <div className={styles.managerHeader}>
         <h2 className={styles.managerTitle}>Question Bank</h2>
-        <Dialog open={isAddModalOpen} onOpenChange={setAddModalOpen}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus size={16} /> Add Question
+        <div className={styles.headerButtons}>
+          <Button 
+            onClick={() => setSelectionMode(!selectionMode)}
+            variant={selectionMode ? "destructive" : "outline"}
+            size="lg"
+          >
+            {selectionMode ? 'Cancel Selection' : 'Select Questions'}
+          </Button>
+          {selectionMode && (
+            <Button 
+              onClick={() => {
+                if (selectedGameQuestions.length === sortedQuestions.length) {
+                  setSelectedGameQuestions([]);
+                } else {
+                  setSelectedGameQuestions(sortedQuestions.map(q => q._id));
+                }
+              }}
+              variant="secondary"
+              size="sm"
+            >
+              {selectedGameQuestions.length === sortedQuestions.length ? 'Deselect All' : 'Select All'}
             </Button>
-          </DialogTrigger>
+          )}
+          <Button 
+            onClick={() => {
+              console.log('Import Questions clicked');
+              setGlobalBankOpen(true);
+            }} 
+            variant="secondary"
+            size="lg"
+          >
+            <Download size={16} /> Import Questions
+          </Button>
+          <Dialog open={isAddModalOpen} onOpenChange={setAddModalOpen}>
+            <DialogTrigger asChild>
+              <Button size="lg">
+                <Plus size={16} /> Add Question
+              </Button>
+            </DialogTrigger>
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Add a New Question</DialogTitle>
@@ -262,10 +380,57 @@ export const QuestionManager: React.FC<QuestionManagerProps> = ({
               onCancel={() => setAddModalOpen(false)}
               isSubmitting={addMutation.isPending}
               submitButtonText="Add Question"
+              onSaveToGlobal={handleSaveToGlobal}
             />
           </DialogContent>
         </Dialog>
+        </div>
       </div>
+      {selectionMode && selectedGameQuestions.length > 0 && (
+        <div className={styles.selectionActions}>
+          <span>{selectedGameQuestions.length} question{selectedGameQuestions.length !== 1 ? 's' : ''} selected</span>
+          <div className={styles.actionButtons}>
+            <Button 
+              variant="destructive" 
+              size="sm"
+              onClick={() => {
+                // Handle bulk delete
+                console.log('Delete selected questions:', selectedGameQuestions);
+              }}
+            >
+              Delete Selected
+            </Button>
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={async () => {
+                try {
+                  const selectedQuestions = sortedQuestions.filter(q => selectedGameQuestions.includes(q._id));
+                  for (const question of selectedQuestions) {
+                    await fetch('/_api/questions/save-global', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({
+                        questionText: question.questionText,
+                        answers: [question.optionA, question.optionB, question.optionC, question.optionD],
+                        correctAnswerIndex: ['A', 'B', 'C', 'D'].indexOf(question.correctAnswer),
+                        createdBy: hostName
+                      })
+                    });
+                  }
+                  toast.success(`${selectedQuestions.length} questions saved to global bank!`);
+                  setSelectedGameQuestions([]);
+                  setSelectionMode(false);
+                } catch (error) {
+                  toast.error('Failed to save questions to global bank');
+                }
+              }}
+            >
+              Save to Global Bank
+            </Button>
+          </div>
+        </div>
+      )}
       <Separator />
       {renderContent()}
 
@@ -308,6 +473,69 @@ export const QuestionManager: React.FC<QuestionManagerProps> = ({
             </Button>
             <Button variant="destructive" onClick={handleDeleteQuestion} disabled={deleteMutation.isPending}>
               {deleteMutation.isPending ? 'Deleting...' : 'Yes, Delete'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Global Question Bank Dialog */}
+      <Dialog open={isGlobalBankOpen} onOpenChange={(open) => { setGlobalBankOpen(open); if (open) loadGlobalQuestions(); }}>
+        <DialogContent className={styles.globalBankDialog}>
+          <DialogHeader>
+            <DialogTitle>Global Question Bank</DialogTitle>
+            <DialogDescription>
+              Select questions from the global bank to import into your game.
+            </DialogDescription>
+          </DialogHeader>
+          <div className={styles.globalQuestionsList}>
+            <div className={styles.selectAllContainer}>
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => {
+                  if (selectedGlobalQuestions.length === globalQuestions.length) {
+                    setSelectedGlobalQuestions([]);
+                  } else {
+                    setSelectedGlobalQuestions(globalQuestions.map((q: any) => q._id));
+                  }
+                }}
+              >
+                {selectedGlobalQuestions.length === globalQuestions.length ? 'Deselect All' : 'Select All'}
+              </Button>
+              <span>{selectedGlobalQuestions.length} of {globalQuestions.length} selected</span>
+            </div>
+            {globalQuestions.map((q: any, index: number) => (
+              <div 
+                key={q._id || `global-q-${index}`} 
+                className={`${styles.globalQuestionItem} ${selectedGlobalQuestions.includes(q._id) ? styles.selected : ''}`}
+                onClick={() => {
+                  if (selectedGlobalQuestions.includes(q._id)) {
+                    setSelectedGlobalQuestions(prev => prev.filter(id => id !== q._id));
+                  } else {
+                    setSelectedGlobalQuestions(prev => [...prev, q._id]);
+                  }
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={selectedGlobalQuestions.includes(q._id)}
+                  onChange={() => {}} // Handled by parent onClick
+                />
+                <div className={styles.questionContent}>
+                  <h4>{q.questionText}</h4>
+                  <div className={styles.questionMeta}>
+                    <Badge variant="outline">{q.category}</Badge>
+                    <Badge variant="secondary">{q.difficulty}</Badge>
+                    <span>By: {q.createdBy}</span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setGlobalBankOpen(false)}>Cancel</Button>
+            <Button onClick={handleImportSelected} disabled={selectedGlobalQuestions.length === 0}>
+              Import {selectedGlobalQuestions.length} Questions
             </Button>
           </DialogFooter>
         </DialogContent>

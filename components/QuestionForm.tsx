@@ -19,6 +19,7 @@ interface QuestionFormProps {
   onCancel: () => void;
   isSubmitting: boolean;
   submitButtonText?: string;
+  onSaveToGlobal?: (data: FormValues) => void;
 }
 
 export const QuestionForm: React.FC<QuestionFormProps> = ({
@@ -27,6 +28,7 @@ export const QuestionForm: React.FC<QuestionFormProps> = ({
   onCancel,
   isSubmitting,
   submitButtonText = 'Save Question',
+  onSaveToGlobal,
 }) => {
   const form = useForm({
     schema: formSchema,
@@ -130,13 +132,22 @@ export const QuestionForm: React.FC<QuestionFormProps> = ({
           <FormMessage />
         </FormItem>
 
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 'var(--spacing-2)', marginTop: 'var(--spacing-6)' }}>
-          <Button type="button" variant="ghost" onClick={onCancel} disabled={isSubmitting}>
-            Cancel
-          </Button>
-          <Button type="submit" disabled={isSubmitting}>
-            {isSubmitting ? 'Saving...' : submitButtonText}
-          </Button>
+        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 'var(--spacing-2)', marginTop: 'var(--spacing-6)' }}>
+          <div>
+            {onSaveToGlobal && (
+              <Button type="button" variant="outline" onClick={() => onSaveToGlobal(values)} disabled={isSubmitting}>
+                Save to Global Bank
+              </Button>
+            )}
+          </div>
+          <div style={{ display: 'flex', gap: 'var(--spacing-2)' }}>
+            <Button type="button" variant="ghost" onClick={onCancel} disabled={isSubmitting}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={isSubmitting}>
+              {isSubmitting ? 'Saving...' : submitButtonText}
+            </Button>
+          </div>
         </div>
       </form>
     </Form>

@@ -13,6 +13,7 @@ const questionSchema = new mongoose.Schema({
   optionD: { type: String, required: true },
   correctAnswer: { type: String, required: true },
   questionIndex: { type: Number, required: true },
+  isGlobal: { type: Boolean, default: false },
   createdAt: { type: Date, default: Date.now }
 });
 

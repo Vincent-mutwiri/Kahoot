@@ -466,6 +466,51 @@ app.post('/_api/settings/set-global-video', async c => {
     return c.json({ error: `Error loading endpoint code: ${errorMessage}` }, 500);
   }
 })
+app.get('/_api/questions/global-list', async c => {
+  try {
+    const { handle } = await import("./endpoints/questions/global-list_GET.js");
+    let request = c.req.raw;
+    const response = await handle(request);
+    if (!(response instanceof Response)) {
+      return c.text("Invalid response format. handle should always return a Response object.", 500);
+    }
+    return response;
+  } catch (e) {
+    console.error(e);
+    const errorMessage = e instanceof Error ? e.message : 'Unknown error';
+    return c.json({ error: `Error loading endpoint code: ${errorMessage}` }, 500);
+  }
+})
+app.post('/_api/questions/save-global', async c => {
+  try {
+    const { handle } = await import("./endpoints/questions/save-global_POST.js");
+    let request = c.req.raw;
+    const response = await handle(request);
+    if (!(response instanceof Response)) {
+      return c.text("Invalid response format. handle should always return a Response object.", 500);
+    }
+    return response;
+  } catch (e) {
+    console.error(e);
+    const errorMessage = e instanceof Error ? e.message : 'Unknown error';
+    return c.json({ error: `Error loading endpoint code: ${errorMessage}` }, 500);
+  }
+})
+app.post('/_api/questions/import-global', async c => {
+  try {
+    const { handle } = await import("./endpoints/questions/import-global_POST.js");
+    let request = c.req.raw;
+    const response = await handle(request);
+    if (!(response instanceof Response)) {
+      return c.text("Invalid response format. handle should always return a Response object.", 500);
+    }
+    return response;
+  } catch (e) {
+    console.error(e);
+    const errorMessage = e instanceof Error ? e.message : 'Unknown error';
+    return c.json({ error: `Error loading endpoint code: ${errorMessage}` }, 500);
+  }
+})
 app.use('/*', serveStatic({ root: './dist' }))
 app.get("*", async (c, next) => {
   const p = c.req.path;
