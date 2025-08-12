@@ -30,13 +30,13 @@ const GamePage: React.FC = () => {
   useWebSocket(gameCode!, (message) => {
     if (message.gameCode !== gameCode) return;
     // If server announces a voting round start with roundId, open the modal
-    if (message.type === 'VOTING_STARTED' && message.roundId) {
+    if (message.type === 'open_vote' && message.roundId) {
       setActiveVotingRoundId(String(message.roundId));
       setIsVotingModalOpen(true);
       return;
     }
     // If voting ends, close modal
-    if (message.type === 'VOTING_ENDED') {
+    if (message.type === 'vote_result') {
       setActiveVotingRoundId(null);
       setIsVotingModalOpen(false);
     }

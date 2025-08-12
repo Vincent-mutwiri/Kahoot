@@ -59,8 +59,17 @@ async function startVote(gameCode: string, hostName: string): Promise<OutputType
 
   console.log(`Redemption round ${newRound._id} started for game ${gameCode}, question ${game.currentQuestionIndex}`);
 
-  // Notify clients with the new round id to open voting modal
-  broadcastToGame(gameCode, { type: 'VOTING_STARTED', gameCode, roundId: newRound._id.toString() });
+  // Notify clients to open vote with candidates and closing timestamp
+  broadcastToGame(gameCode, {
+    type: 'open_vote',
+    gameCode,
+    roundId: newRound._id.toString(),
+    candidates: eligiblePlayers.map(p => ({
+      playerId: p._id.toString(),
+      username: p.username,
+    })),
+    closesAt: endsAt.toISOString(),
+  });
 
   return {
     roundId: newRound._id.toString(),

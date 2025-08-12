@@ -93,8 +93,17 @@ async function autoStartVoting(gameCode: string) {
   });
   await round.save();
 
-  // Broadcast with roundId so clients can open modal
-  broadcastToGame(gameCode, { type: 'VOTING_STARTED', gameCode, roundId: round._id.toString() });
+  // Broadcast open vote with candidates and closing timestamp
+  broadcastToGame(gameCode, {
+    type: 'open_vote',
+    gameCode,
+    roundId: round._id.toString(),
+    candidates: eligiblePlayers.map(p => ({
+      playerId: p._id.toString(),
+      username: p.username,
+    })),
+    closesAt: endsAt.toISOString(),
+  });
   
   // Auto end voting and continue to next question
   setTimeout(() => autoNextQuestion(gameCode), TIMERS.VOTING_DURATION);
@@ -121,9 +130,10 @@ async function autoNextQuestion(gameCode: string) {
 
     const winnerVote = voteCounts.length > 0 ? voteCounts[0] : null;
     const winnerId = winnerVote ? winnerVote._id : null;
+    let updatedPlayer: any = null;
 
     if (winnerId) {
-      const updatedPlayer = await Player.findOneAndUpdate(
+      updatedPlayer = await Player.findOneAndUpdate(
         { _id: winnerId, gameId: game._id },
         { $set: { status: 'active', eliminatedRound: null } },
         { new: true }
@@ -139,8 +149,26 @@ async function autoNextQuestion(gameCode: string) {
     activeRound.redeemedPlayerId = winnerId;
     await activeRound.save();
 
-    // Notify clients voting has ended
-    broadcastToGame(gameCode, { type: 'VOTING_ENDED', gameCode, roundId: activeRound._id.toString(), redeemedPlayerId: winnerId ? winnerId.toString() : null });
+    // Notify clients with vote result
+    broadcastToGame(gameCode, {
+      type: 'vote_result',
+      gameCode,
+      roundId: activeRound._id.toString(),
+      winner: updatedPlayer
+        ? { playerId: updatedPlayer._id.toString(), username: updatedPlayer.username }
+        : null,
+    });
+
+    // Auto revive top scorer if no one is active
+    const activeCount = await Player.countDocuments({ gameId: game._id, status: 'active' });
+    if (activeCount === 0) {
+      const topScorer = await Player.findOne({ gameId: game._id }).sort({ score: -1 });
+      if (topScorer) {
+        topScorer.status = 'active';
+        topScorer.eliminatedRound = null;
+        await topScorer.save();
+      }
+    }
   }
 
   game.currentQuestionIndex = (game.currentQuestionIndex || 0) + 1;
@@ -148,9 +176,14 @@ async function autoNextQuestion(gameCode: string) {
   game.updatedAt = new Date();
   await game.save();
 
-  broadcastToGame(gameCode, { type: 'NEXT_QUESTION', gameCode });
+  broadcastToGame(gameCode, {
+    type: 'next_round',
+    roundId: game.currentQuestionIndex.toString(),
+    questionId: game.currentQuestionIndex,
+    answerWindowMs: TIMERS.QUESTION_DURATION,
+  });
   broadcastToGame(gameCode, { type: 'GAME_STATE_CHANGED', gameCode, gameState: 'question' });
-  
+
   // Start the cycle again
   setTimeout(() => autoRevealAnswer(gameCode), TIMERS.QUESTION_DURATION);
 }

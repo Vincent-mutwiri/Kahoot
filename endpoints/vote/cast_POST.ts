@@ -2,6 +2,8 @@ import dbConnect from "../../lib/db/connect";
 import { RedemptionRound } from "../../lib/models/RedemptionRound";
 import { Player } from "../../lib/models/Player";
 import { Vote } from "../../lib/models/Vote";
+import { Game } from "../../lib/models/Game";
+import { broadcastToGame } from "../../lib/websocket.js";
 import { schema, OutputType } from "./cast_POST.schema";
 import superjson from 'superjson';
 
@@ -66,6 +68,26 @@ async function castVote(roundId: string, voterPlayerId: string, votedForPlayerId
   await newVote.save();
 
   console.log(`Player ${voterPlayerId} voted for ${votedForPlayerId} in round ${roundId}`);
+
+  // Broadcast current tally after each vote
+  const voteCounts = await Vote.aggregate([
+    { $match: { redemptionRoundId: round._id } },
+    { $group: { _id: '$votedForPlayerId', votes: { $sum: 1 } } },
+  ]);
+
+  const tally = voteCounts.map(vc => ({
+    playerId: vc._id.toString(),
+    votes: vc.votes,
+  }));
+
+  const game = await Game.findById(round.gameId);
+  if (game?.code) {
+    broadcastToGame(game.code, {
+      type: 'vote_tick',
+      roundId: round._id.toString(),
+      tallies: tally,
+    });
+  }
 
   return { success: true, message: "Your vote has been cast successfully." };
 }
