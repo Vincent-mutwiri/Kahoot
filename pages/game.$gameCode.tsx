@@ -22,6 +22,7 @@ const GamePage: React.FC = () => {
   const [username, setUsername] = useState<string | null>(null);
   const [isVotingModalOpen, setIsVotingModalOpen] = useState(false);
   const [activeVotingRoundId, setActiveVotingRoundId] = useState<string | null>(null);
+  const [showRedeemedClip, setShowRedeemedClip] = useState(false);
 
   // Voting is handled via VotingModal and voteQueries; no direct POST here
   const hideMediaMutation = usePlayerHideMediaMutation();
@@ -29,16 +30,25 @@ const GamePage: React.FC = () => {
   // WebSocket for real-time updates
   useWebSocket(gameCode!, (message) => {
     if (message.gameCode !== gameCode) return;
-    // If server announces a voting round start with roundId, open the modal
     if (message.type === 'VOTING_STARTED' && message.roundId) {
       setActiveVotingRoundId(String(message.roundId));
       setIsVotingModalOpen(true);
       return;
     }
-    // If voting ends, close modal
-    if (message.type === 'VOTING_ENDED') {
+    if (message.type === 'VOTE_RESULT' || message.type === 'VOTING_ENDED') {
       setActiveVotingRoundId(null);
       setIsVotingModalOpen(false);
+      const winnerId = message.winnerId || message.redeemedPlayerId;
+      if (winnerId) {
+        setShowRedeemedClip(true);
+        setTimeout(() => {
+          setShowRedeemedClip(false);
+          refetch();
+        }, 5000);
+      } else {
+        refetch();
+      }
+      return;
     }
     // For all other updates, refetch state
     refetch();
@@ -153,6 +163,16 @@ const GamePage: React.FC = () => {
 
     const { game, player, players, currentQuestion, questionStartTimeMs } = data;
 
+    if (showRedeemedClip) {
+      return (
+        <div className={styles.sequenceView}>
+          <video src="/media/redeemed.mp4" autoPlay className={styles.sequenceVideo} />
+          <h2>Redeemed!</h2>
+          <p>Waiting for next round...</p>
+        </div>
+      );
+    }
+
     // State machine based on gameState
     switch (game.gameState || game.status) {
       case 'lobby':
@@ -188,43 +208,43 @@ const GamePage: React.FC = () => {
         }
         break;
         
-      case 'elimination':
-        const eliminatedPlayers = players.filter(p => p.status === 'eliminated' && p.eliminatedRound === game.currentQuestionIndex);
+        case 'elimination':
+        const eliminatedPlayers = players.filter((p: any) => p.status === 'eliminated' && p.eliminatedRound === game.currentQuestionIndex);
         return (
           <div className={styles.sequenceView}>
             {game.eliminationVideoUrl && (
               <video src={game.eliminationVideoUrl} autoPlay className={styles.sequenceVideo} />
             )}
             <h2>Players Eliminated</h2>
-            <ul>
-              {eliminatedPlayers.map(p => <li key={p.id}>{p.username}</li>)}
-            </ul>
+              <ul>
+                {eliminatedPlayers.map((p: any) => <li key={p.id}>{p.username}</li>)}
+              </ul>
             <p className={styles.autoMessage}>Continuing automatically...</p>
           </div>
         );
         
-      case 'survivors':
-        const survivors = players.filter(p => p.status === 'active' || p.status === 'redeemed');
+        case 'survivors':
+        const survivors = players.filter((p: any) => p.status === 'active' || p.status === 'redeemed');
         return (
           <div className={styles.sequenceView}>
             {game.survivorVideoUrl && (
               <video src={game.survivorVideoUrl} autoPlay className={styles.sequenceVideo} />
             )}
             <h2>Survivors</h2>
-            <ul>
-              {survivors.map(p => <li key={p.id}>{p.username}</li>)}
-            </ul>
+              <ul>
+                {survivors.map((p: any) => <li key={p.id}>{p.username}</li>)}
+              </ul>
             <p className={styles.autoMessage}>Moving to redemption...</p>
           </div>
         );
         
       case 'leaderboard':
-        const sortedPlayers = [...players].sort((a, b) => (b.score || 0) - (a.score || 0));
+        const sortedPlayers = [...players].sort((a: any, b: any) => (b.score || 0) - (a.score || 0));
         return (
           <div className={styles.leaderboardView}>
             <h2>Leaderboard</h2>
             <ol>
-              {sortedPlayers.map(p => (
+                {sortedPlayers.map((p: any) => (
                 <li key={p.id} className={p.status === 'active' ? styles.survivor : ''}>
                   {p.username} - {p.score || 0} points
                 </li>
@@ -234,7 +254,7 @@ const GamePage: React.FC = () => {
         );
         
       case 'redemption':
-        const currentRoundEliminated = players.filter(p => p.status === 'eliminated' && p.eliminatedRound === game.currentQuestionIndex);
+        const currentRoundEliminated = players.filter((p: any) => p.status === 'eliminated' && p.eliminatedRound === game.currentQuestionIndex);
         return (
           <div className={styles.redemptionView}>
             {game.redemptionVideoUrl && (

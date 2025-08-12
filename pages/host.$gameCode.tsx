@@ -113,6 +113,7 @@ const MasterControls = ({ game, hostName, players, currentVotingRoundId, onStart
   const endGame = useEndGame();
   const startVoting = useStartVotingMutation();
   const endVoting = useEndVotingMutation();
+  const [autoAdvanceEnabled, setAutoAdvanceEnabled] = useState(true);
 
   const advanceGameState = async (newState: string) => {
     try {
@@ -165,6 +166,38 @@ const MasterControls = ({ game, hostName, players, currentVotingRoundId, onStart
     }
   };
 
+  const handleExtendVote = () => {
+    if (!currentVotingRoundId) return;
+    fetch('/_api/vote/extend', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ roundId: currentVotingRoundId, hostName, gameCode: game.code }),
+    });
+  };
+
+  const handleSkipVideo = () => {
+    const nextStateMap: Record<string, string> = {
+      elimination: 'survivors',
+      survivors: 'redemption',
+      redemption: 'question',
+    };
+    const currentState = (game as any).gameState as string;
+    const next = nextStateMap[currentState as keyof typeof nextStateMap];
+    if (next) {
+      advanceGameState(next);
+    }
+  };
+
+  const handleToggleAutoAdvance = () => {
+    const newState = !autoAdvanceEnabled;
+    setAutoAdvanceEnabled(newState);
+    fetch('/_api/game/auto-advance', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ gameCode: game.code, hostName, enabled: newState }),
+    });
+  };
+
   return (
     <div className={styles.controlCard}>
       <h3 className={styles.squadaOne}>Master Controls</h3>
@@ -210,6 +243,16 @@ const MasterControls = ({ game, hostName, players, currentVotingRoundId, onStart
             End Voting
           </Button>
         )}
+        {currentVotingRoundId && (
+          <Button
+            size="lg"
+            variant="secondary"
+            onClick={handleExtendVote}
+            disabled={isMutationPending}
+          >
+            Extend Vote
+          </Button>
+        )}
         <Button
           size="lg"
           variant="secondary"
@@ -250,6 +293,22 @@ const MasterControls = ({ game, hostName, players, currentVotingRoundId, onStart
           disabled={!isActive || isMutationPending}
         >
           Start Redemption
+        </Button>
+        <Button
+          size="lg"
+          variant="outline"
+          onClick={handleSkipVideo}
+          disabled={isMutationPending}
+        >
+          Skip Video
+        </Button>
+        <Button
+          size="lg"
+          variant="outline"
+          onClick={handleToggleAutoAdvance}
+          disabled={isMutationPending}
+        >
+          {autoAdvanceEnabled ? 'Disable Auto-Advance' : 'Enable Auto-Advance'}
         </Button>
         <Button
           size="lg"
