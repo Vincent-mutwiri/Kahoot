@@ -1,8 +1,14 @@
 import dbConnect from "../../lib/db/connect";
 import { Game } from "../../lib/models/Game";
+import { Player } from "../../lib/models/Player";
 import { schema, OutputType } from "./reveal-answer_POST.schema";
 import superjson from 'superjson';
 import { broadcastToGame } from "../../lib/websocket.js";
+
+const ELIMINATION_VIDEO_MS = 5_000;
+const SURVIVOR_VIDEO_MS = 3_000;
+const REDEMPTION_VIDEO_MS = 2_000;
+const VOTE_WINDOW_MS = 20_000;
 
 export async function handle(request: Request): Promise<Response> {
   try {
@@ -25,12 +31,48 @@ export async function handle(request: Request): Promise<Response> {
     }
     
     if (game.currentQuestionIndex === null) {
-        return new Response(superjson.stringify({ error: "No active question to reveal." }), { status: 409 });
+      return new Response(superjson.stringify({ error: "No active question to reveal." }), { status: 409 });
     }
 
-    // Trigger clients to reveal the answer via WebSocket broadcast
-    broadcastToGame(gameCode, { type: 'REVEAL_ANSWER', gameCode, questionIndex: game.currentQuestionIndex });
-    broadcastToGame(gameCode, { type: 'GAME_STATE_CHANGED', gameCode });
+    // Increment prize pot once per question and keep gameState consistent
+    game.currentPrizePot += game.prizePotIncrement;
+    game.gameState = 'question';
+    await game.save();
+
+    // Gather round results
+    const players = await Player.find({ gameId: game._id });
+    const eliminated = players
+      .filter(p => p.status === 'eliminated' && p.eliminatedRound === game.currentQuestionIndex)
+      .map(p => p.username);
+    const survivors = players.filter(p => p.status === 'active').map(p => p.username);
+
+    const scoresDelta: Record<string, number> = {};
+    players.forEach(p => {
+      scoresDelta[p.username] = p.status === 'active' ? 100 : 0;
+    });
+
+    // Broadcast answer reveal and round results
+    broadcastToGame(gameCode, {
+      type: 'REVEAL_ANSWER',
+      gameCode,
+      questionIndex: game.currentQuestionIndex,
+    });
+
+    broadcastToGame(gameCode, {
+      type: 'round_results',
+      gameCode,
+      eliminated,
+      survivors,
+      pot: game.currentPrizePot,
+      scoresDelta,
+      videos: {
+        elimination: { url: game.eliminationVideoUrl, duration: ELIMINATION_VIDEO_MS },
+        survivors: { url: game.survivorVideoUrl, duration: SURVIVOR_VIDEO_MS },
+        redemption: { url: game.redemptionVideoUrl, duration: REDEMPTION_VIDEO_MS },
+      },
+      voteWindowMs: VOTE_WINDOW_MS,
+    });
+
     const response: OutputType = { success: true, message: "Answer reveal triggered." };
     return new Response(superjson.stringify(response));
   } catch (error) {

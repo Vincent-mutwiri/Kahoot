@@ -75,7 +75,6 @@ async function handleAnswerSubmission(gameCode: string, username: string, answer
     console.log(`Player ${username} answered correctly in game ${gameCode}, question ${game.currentQuestionIndex}`);
     // Let others know player's score changed
     broadcastToGame(gameCode, { type: 'PLAYER_ANSWERED', gameCode, username, correct: true });
-    broadcastToGame(gameCode, { type: 'GAME_STATE_CHANGED', gameCode });
     return { status: 'active', message: "Answer submitted successfully." };
   } else {
     // Incorrect answer - eliminate player
@@ -85,7 +84,6 @@ async function handleAnswerSubmission(gameCode: string, username: string, answer
     
     console.log(`Player ${username} eliminated due to incorrect answer in game ${gameCode}, question ${game.currentQuestionIndex}`);
     broadcastToGame(gameCode, { type: 'PLAYER_ELIMINATED', gameCode, username, round: game.currentQuestionIndex });
-    broadcastToGame(gameCode, { type: 'GAME_STATE_CHANGED', gameCode });
     return { status: 'eliminated', message: "Incorrect answer. You have been eliminated." };
   }
 }

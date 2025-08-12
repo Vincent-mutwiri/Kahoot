@@ -73,18 +73,27 @@ export async function handle(request: Request): Promise<Response> {
       }
     }
 
-    // Advance to next question
+    // Update game state and prepare for next round
     const nextIndex = (game.currentQuestionIndex ?? 0) + 1;
     game.currentQuestionIndex = nextIndex;
     game.gameState = 'question';
     await game.save();
 
     const answerWindowMs = (game.roundDurationSeconds ?? 30) * 1000;
+
+    // Notify clients about the next round
     broadcastToGame(game.code, {
       type: 'next_round',
       roundId: nextIndex.toString(),
       questionId: nextIndex,
       answerWindowMs,
+    });
+
+    broadcastToGame(game.code, { 
+      type: 'GAME_STATE_CHANGED', 
+      gameCode: game.code,
+      gameState: 'question',
+      questionIndex: nextIndex 
     });
 
     return new Response(

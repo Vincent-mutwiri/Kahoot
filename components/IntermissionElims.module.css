@@ -1,0 +1,41 @@
+.container {
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+  justify-content: center;
+  height: 100%;
+  position: relative;
+}
+.video {
+  flex: 1;
+  width: 100%;
+  height: auto;
+}
+.listPanel {
+  flex: 0 0 40%;
+  padding: 1rem;
+  background: rgba(0,0,0,0.6);
+  color: white;
+}
+.heading {
+  margin-top: 0;
+}
+.list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.banner {
+  position: absolute;
+  top: 1rem;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #c53030;
+  color: white;
+  padding: 0.5rem 1rem;
+  font-weight: bold;
+  border-radius: 4px;
+}
+.none {
+  font-style: italic;
+}
