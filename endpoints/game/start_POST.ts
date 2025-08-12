@@ -2,8 +2,8 @@ import dbConnect from "../../lib/db/connect";
 import { Game } from "../../lib/models/Game";
 import { schema, OutputType } from "./start_POST.schema";
 import superjson from 'superjson';
-import { broadcastToGame } from "../../lib/websocket.js";
-import { startAutoFlow } from "../../lib/gameFlow.js";
+import { broadcastToGame } from "../../lib/websocket";
+import { startAutoFlow } from "../../lib/gameFlow";
 
 export async function handle(request: Request): Promise<Response> {
   try {

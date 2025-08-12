@@ -28,14 +28,14 @@ export default defineConfig(({ mode }) => ({
     'process.env.NODE_ENV': JSON.stringify(mode === 'development' ? 'development' : 'production'),
   },
   server: {
-    port: 3000,
+    port: 5173,
     proxy: {
       "/_api": {
-        target: "http://localhost:3344",
+        target: "http://localhost:3001",
         changeOrigin: true,
       },
       "/ws": {
-        target: "http://localhost:3344",
+        target: "http://localhost:3001",
         changeOrigin: true,
         ws: true,
       },

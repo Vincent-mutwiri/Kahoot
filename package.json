@@ -18,7 +18,7 @@
     "vercel-build": "pnpm build",
     "preview": "vite preview --port 3000",
     "server": "tsx watch --clear-screen=false server.ts",
-    "start": "node server.ts",
+    "start": "concurrently \"pnpm dev\" \"pnpm server\"",
     "deploy": "vercel --prod"
   },
   "dependencies": {

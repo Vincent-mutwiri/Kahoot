@@ -66,7 +66,7 @@ export { handler };
 
 app.post('/_api/game/create',async c => {
   try {
-    const { handle } = await import("./endpoints/game/create_POST.js");
+    const { handle } = await import("./endpoints/game/create_POST.ts");
     let request = c.req.raw;
     const response = await handle(request);
     if (!(response instanceof Response)) {
@@ -81,7 +81,7 @@ app.post('/_api/game/create',async c => {
 })
 app.post('/_api/game/join',async c => {
   try {
-    const { handle } = await import("./endpoints/game/join_POST.js");
+    const { handle } = await import("./endpoints/game/join_POST.ts");
     let request = c.req.raw;
     const response = await handle(request);
     if (!(response instanceof Response)) {
@@ -96,7 +96,7 @@ app.post('/_api/game/join',async c => {
 })
 app.get('/_api/game/info',async c => {
   try {
-    const { handle } = await import("./endpoints/game/info_GET.js");
+    const { handle } = await import("./endpoints/game/info_GET.ts");
     let request = c.req.raw;
     const response = await handle(request);
     if (!(response instanceof Response)) {
@@ -111,7 +111,7 @@ app.get('/_api/game/info',async c => {
 })
 app.post('/_api/game/start',async c => {
   try {
-    const { handle } = await import("./endpoints/game/start_POST.js");
+    const { handle } = await import("./endpoints/game/start_POST.ts");
     let request = c.req.raw;
     const response = await handle(request);
     if (!(response instanceof Response)) {
@@ -126,7 +126,7 @@ app.post('/_api/game/start',async c => {
 })
 app.post('/_api/game/next-question',async c => {
   try {
-    const { handle } = await import("./endpoints/game/next-question_POST.js");
+    const { handle } = await import("./endpoints/game/next-question_POST.ts");
     let request = c.req.raw;
     const response = await handle(request);
     if (!(response instanceof Response)) {
@@ -141,7 +141,7 @@ app.post('/_api/game/next-question',async c => {
 })
 app.post('/_api/game/reveal-answer',async c => {
   try {
-    const { handle } = await import("./endpoints/game/reveal-answer_POST.js");
+    const { handle } = await import("./endpoints/game/reveal-answer_POST.ts");
     let request = c.req.raw;
     const response = await handle(request);
     if (!(response instanceof Response)) {
@@ -156,7 +156,7 @@ app.post('/_api/game/reveal-answer',async c => {
 })
 app.post('/_api/game/show-media',async c => {
   try {
-    const { handle } = await import("./endpoints/game/show-media_POST.js");
+    const { handle } = await import("./endpoints/game/show-media_POST.ts");
     let request = c.req.raw;
     const response = await handle(request);
     if (!(response instanceof Response)) {
@@ -171,7 +171,7 @@ app.post('/_api/game/show-media',async c => {
 })
 app.post('/_api/game/hide-media',async c => {
   try {
-    const { handle } = await import("./endpoints/game/hide-media_POST.js");
+    const { handle } = await import("./endpoints/game/hide-media_POST.ts");
     let request = c.req.raw;
     const response = await handle(request);
     if (!(response instanceof Response)) {
@@ -186,7 +186,7 @@ app.post('/_api/game/hide-media',async c => {
 })
 app.post('/_api/game/play-sound',async c => {
   try {
-    const { handle } = await import("./endpoints/game/play-sound_POST.js");
+    const { handle } = await import("./endpoints/game/play-sound_POST.ts");
     let request = c.req.raw;
     const response = await handle(request);
     if (!(response instanceof Response)) {
@@ -201,7 +201,7 @@ app.post('/_api/game/play-sound',async c => {
 })
 app.post('/_api/game/clear-sound',async c => {
   try {
-    const { handle } = await import("./endpoints/game/clear-sound_POST.js");
+    const { handle } = await import("./endpoints/game/clear-sound_POST.ts");
     let request = c.req.raw;
     const response = await handle(request);
     if (!(response instanceof Response)) {
@@ -216,7 +216,7 @@ app.post('/_api/game/clear-sound',async c => {
 })
 app.post('/_api/game/player-hide-media',async c => {
   try {
-    const { handle } = await import("./endpoints/game/player-hide-media_POST.js");
+    const { handle } = await import("./endpoints/game/player-hide-media_POST.ts");
     let request = c.req.raw;
     const response = await handle(request);
     if (!(response instanceof Response)) {
@@ -231,7 +231,7 @@ app.post('/_api/game/player-hide-media',async c => {
 })
 app.post('/_api/game/end',async c => {
   try {
-    const { handle } = await import("./endpoints/game/end_POST.js");
+    const { handle } = await import("./endpoints/game/end_POST.ts");
     let request = c.req.raw;
     const response = await handle(request);
     if (!(response instanceof Response)) {
@@ -246,7 +246,7 @@ app.post('/_api/game/end',async c => {
 })
 app.post('/_api/player/answer',async c => {
   try {
-    const { handle } = await import("./endpoints/player/answer_POST.js");
+    const { handle } = await import("./endpoints/player/answer_POST.ts");
     let request = c.req.raw;
     const response = await handle(request);
     if (!(response instanceof Response)) {
@@ -261,7 +261,7 @@ app.post('/_api/player/answer',async c => {
 })
 app.get('/_api/player/state',async c => {
   try {
-    const { handle } = await import("./endpoints/player/state_GET.js");
+    const { handle } = await import("./endpoints/player/state_GET.ts");
     let request = c.req.raw;
     const response = await handle(request);
     if (!(response instanceof Response)) {
@@ -276,7 +276,7 @@ app.get('/_api/player/state',async c => {
 })
 app.post('/_api/question/add',async c => {
   try {
-    const { handle } = await import("./endpoints/question/add_POST.js");
+    const { handle } = await import("./endpoints/question/add_POST.ts");
     let request = c.req.raw;
     const response = await handle(request);
     if (!(response instanceof Response)) {
@@ -291,7 +291,7 @@ app.post('/_api/question/add',async c => {
 })
 app.get('/_api/question/list',async c => {
   try {
-    const { handle } = await import("./endpoints/question/list_GET.js");
+    const { handle } = await import("./endpoints/question/list_GET.ts");
     let request = c.req.raw;
     const response = await handle(request);
     if (!(response instanceof Response)) {
@@ -306,7 +306,7 @@ app.get('/_api/question/list',async c => {
 })
 app.post('/_api/question/update',async c => {
   try {
-    const { handle } = await import("./endpoints/question/update_POST.js");
+    const { handle } = await import("./endpoints/question/update_POST.ts");
     let request = c.req.raw;
     const response = await handle(request);
     if (!(response instanceof Response)) {
@@ -321,7 +321,7 @@ app.post('/_api/question/update',async c => {
 })
 app.post('/_api/question/delete',async c => {
   try {
-    const { handle } = await import("./endpoints/question/delete_POST.js");
+    const { handle } = await import("./endpoints/question/delete_POST.ts");
     let request = c.req.raw;
     const response = await handle(request);
     if (!(response instanceof Response)) {
@@ -336,7 +336,7 @@ app.post('/_api/question/delete',async c => {
 })
 app.post('/_api/vote/start',async c => {
   try {
-    const { handle } = await import("./endpoints/vote/start_POST.js");
+    const { handle } = await import("./endpoints/vote/start_POST.ts");
     let request = c.req.raw;
     const response = await handle(request);
     if (!(response instanceof Response)) {
@@ -351,7 +351,7 @@ app.post('/_api/vote/start',async c => {
 })
 app.post('/_api/vote/cast',async c => {
   try {
-    const { handle } = await import("./endpoints/vote/cast_POST.js");
+    const { handle } = await import("./endpoints/vote/cast_POST.ts");
     let request = c.req.raw;
     const response = await handle(request);
     if (!(response instanceof Response)) {
@@ -366,7 +366,7 @@ app.post('/_api/vote/cast',async c => {
 })
 app.get('/_api/vote/state',async c => {
   try {
-    const { handle } = await import("./endpoints/vote/state_GET.js");
+    const { handle } = await import("./endpoints/vote/state_GET.ts");
     let request = c.req.raw;
     const response = await handle(request);
     if (!(response instanceof Response)) {
@@ -381,7 +381,7 @@ app.get('/_api/vote/state',async c => {
 })
 app.post('/_api/vote/end',async c => {
   try {
-    const { handle } = await import("./endpoints/vote/end_POST.js");
+    const { handle } = await import("./endpoints/vote/end_POST.ts");
     let request = c.req.raw;
     const response = await handle(request);
     if (!(response instanceof Response)) {
@@ -411,7 +411,7 @@ app.post('/_api/vote/end-redemption',async c => {
 })
 app.post('/_api/upload/get-presigned-url', async c => {
   try {
-    const { handle } = await import("./endpoints/upload/get-presigned-url_POST.js");
+    const { handle } = await import("./endpoints/upload/get-presigned-url_POST.ts");
     let request = c.req.raw;
     const response = await handle(request);
     if (!(response instanceof Response)) {
@@ -426,7 +426,7 @@ app.post('/_api/upload/get-presigned-url', async c => {
 })
 app.post('/_api/game/set-media-url', async c => {
   try {
-    const { handle } = await import("./endpoints/game/set-media-url_POST.js");
+    const { handle } = await import("./endpoints/game/set-media-url_POST.ts");
     let request = c.req.raw;
     const response = await handle(request);
     if (!(response instanceof Response)) {
@@ -441,7 +441,7 @@ app.post('/_api/game/set-media-url', async c => {
 })
 app.post('/_api/game/set-sequence-video', async c => {
   try {
-    const { handle } = await import("./endpoints/game/set-sequence-video_POST.js");
+    const { handle } = await import("./endpoints/game/set-sequence-video_POST.ts");
     let request = c.req.raw;
     const response = await handle(request);
     if (!(response instanceof Response)) {
@@ -456,7 +456,7 @@ app.post('/_api/game/set-sequence-video', async c => {
 })
 app.post('/_api/game/advance-state', async c => {
   try {
-    const { handle } = await import("./endpoints/game/advance-state_POST.js");
+    const { handle } = await import("./endpoints/game/advance-state_POST.ts");
     let request = c.req.raw;
     const response = await handle(request);
     if (!(response instanceof Response)) {
@@ -472,7 +472,7 @@ app.post('/_api/game/advance-state', async c => {
 // Deprecated endpoints removed: vote/redemption and vote/end-redemption
 app.get('/_api/settings/get-global-videos', async c => {
   try {
-    const { handle } = await import("./endpoints/settings/get-global-videos_GET.js");
+    const { handle } = await import("./endpoints/settings/get-global-videos_GET.ts");
     let request = c.req.raw;
     const response = await handle(request);
     if (!(response instanceof Response)) {
@@ -487,7 +487,7 @@ app.get('/_api/settings/get-global-videos', async c => {
 })
 app.post('/_api/settings/set-global-video', async c => {
   try {
-    const { handle } = await import("./endpoints/settings/set-global-video_POST.js");
+    const { handle } = await import("./endpoints/settings/set-global-video_POST.ts");
     let request = c.req.raw;
     const response = await handle(request);
     if (!(response instanceof Response)) {
@@ -502,7 +502,7 @@ app.post('/_api/settings/set-global-video', async c => {
 })
 app.get('/_api/questions/global-list', async c => {
   try {
-    const { handle } = await import("./endpoints/questions/global-list_GET.js");
+    const { handle } = await import("./endpoints/questions/global-list_GET.ts");
     let request = c.req.raw;
     const response = await handle(request);
     if (!(response instanceof Response)) {
@@ -517,7 +517,7 @@ app.get('/_api/questions/global-list', async c => {
 })
 app.post('/_api/questions/save-global', async c => {
   try {
-    const { handle } = await import("./endpoints/questions/save-global_POST.js");
+    const { handle } = await import("./endpoints/questions/save-global_POST.ts");
     let request = c.req.raw;
     const response = await handle(request);
     if (!(response instanceof Response)) {
@@ -532,7 +532,7 @@ app.post('/_api/questions/save-global', async c => {
 })
 app.post('/_api/questions/import-global', async c => {
   try {
-    const { handle } = await import("./endpoints/questions/import-global_POST.js");
+    const { handle } = await import("./endpoints/questions/import-global_POST.ts");
     let request = c.req.raw;
     const response = await handle(request);
     if (!(response instanceof Response)) {
@@ -555,7 +555,7 @@ app.get("*", async (c, next) => {
 });
 
 // Get port from environment variable or use default
-const port = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
+const port = process.env.PORT ? parseInt(process.env.PORT, 10) : 3001;
 
 // Create server
 const server = serve({
@@ -576,4 +576,3 @@ process.on('SIGTERM', () => {
     process.exit(0);
   });
 });
-console.log("Running at http://localhost:3344")

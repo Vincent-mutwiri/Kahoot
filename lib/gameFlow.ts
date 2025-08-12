@@ -1,6 +1,6 @@
 import { Game } from './models/Game.js';
-import { broadcastToGame } from './websocket.js';
-import { Game } from './models/Game.js';
+import { broadcastToGame } from './websocket';
+import { Game } from './models/Game';
 import { RedemptionRound } from './models/RedemptionRound.js';
 import { Player } from './models/Player.js';
 

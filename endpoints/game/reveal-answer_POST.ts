@@ -3,7 +3,7 @@ import { Game } from "../../lib/models/Game";
 import { Player } from "../../lib/models/Player";
 import { schema, OutputType } from "./reveal-answer_POST.schema";
 import superjson from 'superjson';
-import { broadcastToGame } from "../../lib/websocket.js";
+import { broadcastToGame } from "../../lib/websocket";
 
 const ELIMINATION_VIDEO_MS = 5_000;
 const SURVIVOR_VIDEO_MS = 3_000;
