@@ -25,6 +25,7 @@ import { Skeleton } from '../components/Skeleton';
 import { Spinner } from '../components/Spinner';
 import { QuestionManager } from '../components/QuestionManager';
 import { ConnectionStatus } from '../components/ConnectionStatus';
+import { FileDropzone } from '../components/FileDropzone';
 import {
   Play,
   Square,
@@ -40,6 +41,7 @@ import {
   AlertTriangle,
   Vote,
   CheckCircle2,
+  Upload,
 } from 'lucide-react';
 import styles from './host.$gameCode.module.css';
 import type { Selectable } from 'kysely';
@@ -111,6 +113,18 @@ const MasterControls = ({ game, hostName, players, currentVotingRoundId, onStart
   const endGame = useEndGame();
   const startVoting = useStartVotingMutation();
   const endVoting = useEndVotingMutation();
+
+  const advanceGameState = async (newState: string) => {
+    try {
+      await fetch('/_api/game/advance-state', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ gameCode: game.code, hostName, newState })
+      });
+    } catch (error) {
+      console.error('Failed to advance game state:', error);
+    }
+  };
 
   const isLobby = game.status === 'lobby';
   const isActive = game.status === 'active';
@@ -207,6 +221,38 @@ const MasterControls = ({ game, hostName, players, currentVotingRoundId, onStart
         </Button>
         <Button
           size="lg"
+          variant="outline"
+          onClick={() => advanceGameState('elimination')}
+          disabled={!isActive || isMutationPending}
+        >
+          Start Elimination
+        </Button>
+        <Button
+          size="lg"
+          variant="outline"
+          onClick={() => advanceGameState('survivors')}
+          disabled={!isActive || isMutationPending}
+        >
+          Show Survivors
+        </Button>
+        <Button
+          size="lg"
+          variant="outline"
+          onClick={() => advanceGameState('leaderboard')}
+          disabled={!isActive || isMutationPending}
+        >
+          Show Leaderboard
+        </Button>
+        <Button
+          size="lg"
+          variant="outline"
+          onClick={() => advanceGameState('redemption')}
+          disabled={!isActive || isMutationPending}
+        >
+          Start Redemption
+        </Button>
+        <Button
+          size="lg"
           variant="destructive"
           onClick={() => endGame.mutate({ gameCode: game.code, hostName })}
           disabled={isFinished || isMutationPending}
@@ -233,7 +279,7 @@ const PlayerList = ({ players }: { players: Selectable<Players>[] }) => {
           </h4>
           <ul>
             {activePlayers.map(player => (
-              <li key={player.id} className={styles.playerItem}>
+              <li key={`active-${player.id}`} className={styles.playerItem}>
                 <span>{player.username}</span>
                 <Badge variant={player.status === 'redeemed' ? 'secondary' : 'success'}>
                   {player.status}
@@ -249,7 +295,7 @@ const PlayerList = ({ players }: { players: Selectable<Players>[] }) => {
           </h4>
           <ul>
             {eliminatedPlayers.map(player => (
-              <li key={player.id} className={styles.playerItem}>
+              <li key={`eliminated-${player.id}`} className={styles.playerItem}>
                 <span>{player.username}</span>
                 <Badge variant="destructive">{player.status}</Badge>
               </li>
@@ -277,6 +323,19 @@ const MediaControls = ({ gameCode, hostName }: MediaControlsProps) => {
     }
   };
 
+  const handleUploadComplete = async (fileUrl: string) => {
+    try {
+      await fetch('/_api/game/set-media-url', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ gameCode, hostName, mediaUrl: fileUrl }),
+      });
+      setMediaUrl(fileUrl);
+    } catch (error) {
+      console.error('Failed to set media URL:', error);
+    }
+  };
+
   const isMutationPending = showMedia.isPending || hideMedia.isPending;
 
   return (
@@ -285,7 +344,7 @@ const MediaControls = ({ gameCode, hostName }: MediaControlsProps) => {
       <div className={styles.mediaInputContainer}>
         <Input
           type="url"
-          placeholder="Enter GIF URL..."
+          placeholder="Enter media URL or upload file below..."
           value={mediaUrl}
           onChange={e => setMediaUrl(e.target.value)}
           disabled={isMutationPending}
@@ -302,6 +361,13 @@ const MediaControls = ({ gameCode, hostName }: MediaControlsProps) => {
           {hideMedia.isPending ? <Spinner size="sm" /> : 'Hide'}
         </Button>
       </div>
+      <FileDropzone
+        accept="image/*,video/*"
+        maxSize={50 * 1024 * 1024}
+        onUploadComplete={handleUploadComplete}
+        title="Upload Image or Video"
+        subtitle="Max 50MB - Images and videos only"
+      />
     </div>
   );
 };
@@ -310,6 +376,97 @@ interface SoundControlsProps {
   gameCode: string;
   hostName: string;
 }
+
+interface SequenceVideoControlsProps {
+  gameCode: string;
+  hostName: string;
+}
+
+const SequenceVideoControls = ({ gameCode, hostName }: SequenceVideoControlsProps) => {
+  const [videoUrls, setVideoUrls] = useState({
+    elimination: '',
+    survivor: '',
+    redemption: ''
+  });
+
+  useEffect(() => {
+    const loadGlobalVideos = async () => {
+      try {
+        const response = await fetch('/_api/settings/get-global-videos');
+        const data = await response.json();
+        setVideoUrls({
+          elimination: data.eliminationVideoUrl || '',
+          survivor: data.survivorVideoUrl || '',
+          redemption: data.redemptionVideoUrl || ''
+        });
+      } catch (error) {
+        console.error('Failed to load global videos:', error);
+      }
+    };
+    loadGlobalVideos();
+  }, []);
+
+  const handleUploadComplete = async (s3Url: string, videoType: 'elimination' | 'survivor' | 'redemption') => {
+    try {
+      await fetch('/_api/settings/set-global-video', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ videoType, url: s3Url }),
+      });
+      setVideoUrls(prev => ({ ...prev, [videoType]: s3Url }));
+    } catch (error) {
+      console.error('Failed to set global video:', error);
+    }
+  };
+
+  return (
+    <div className={styles.controlCard}>
+      <h3 className={styles.squadaOne}>Global Sequence Videos</h3>
+      <p style={{ marginBottom: 'var(--spacing-4)', color: 'var(--muted-foreground)' }}>These videos will be used for all games unless changed</p>
+      <div className={styles.sequenceVideoGrid}>
+        <div>
+          <h4>Elimination Video</h4>
+          <FileDropzone
+            accept="video/*,image/*"
+            maxSize={50 * 1024 * 1024}
+            onUploadComplete={(url) => handleUploadComplete(url, 'elimination')}
+            title="Upload Elimination Media"
+            subtitle="Plays when players are eliminated"
+          />
+          {videoUrls.elimination && (
+            <video src={videoUrls.elimination} controls className={styles.videoPreview} />
+          )}
+        </div>
+        <div>
+          <h4>Survivor Video</h4>
+          <FileDropzone
+            accept="video/*,image/*"
+            maxSize={50 * 1024 * 1024}
+            onUploadComplete={(url) => handleUploadComplete(url, 'survivor')}
+            title="Upload Survivor Media"
+            subtitle="Plays to show survivors"
+          />
+          {videoUrls.survivor && (
+            <video src={videoUrls.survivor} controls className={styles.videoPreview} />
+          )}
+        </div>
+        <div>
+          <h4>Redemption Video</h4>
+          <FileDropzone
+            accept="video/*,image/*"
+            maxSize={50 * 1024 * 1024}
+            onUploadComplete={(url) => handleUploadComplete(url, 'redemption')}
+            title="Upload Redemption Media"
+            subtitle="Plays during voting phase"
+          />
+          {videoUrls.redemption && (
+            <video src={videoUrls.redemption} controls className={styles.videoPreview} />
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const SoundControls = ({ gameCode, hostName }: SoundControlsProps) => {
   const playSound = usePlaySound();
@@ -479,6 +636,7 @@ export default function HostDashboardPage() {
               gameStatus={game.status}
             />
             <MediaControls gameCode={game.code} hostName={hostName} />
+            <SequenceVideoControls gameCode={game.code} hostName={hostName} />
             <SoundControls gameCode={game.code} hostName={hostName} />
           </div>
           <div className={styles.rightColumn}>

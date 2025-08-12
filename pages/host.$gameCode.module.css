@@ -239,6 +239,32 @@
   max-width: 80%;
 }
 
+.sequenceVideoGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: var(--spacing-4);
+}
+
+.sequenceVideoGrid > div {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-3);
+}
+
+.sequenceVideoGrid h4 {
+  margin: 0;
+  font-size: 1.1rem;
+  color: var(--foreground);
+}
+
+.videoPreview {
+  width: 100%;
+  max-height: 200px;
+  border-radius: var(--radius);
+  background-color: var(--background);
+  margin-top: var(--spacing-2);
+}
+
 @media (max-width: 1024px) {
   .mainContent {
     grid-template-columns: 1fr;

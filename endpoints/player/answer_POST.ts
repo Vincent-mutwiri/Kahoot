@@ -1,4 +1,4 @@
-import dbConnect from "../../lib/db/connect";
+import { connectToDatabase } from "../../lib/db/mongodb.js";
 import { Game } from "../../lib/models/Game";
 import { Player } from "../../lib/models/Player";
 import { Question } from "../../lib/models/Question";
@@ -67,7 +67,10 @@ async function handleAnswerSubmission(gameCode: string, username: string, answer
   }
 
   if (answer === question.correctAnswer) {
-    // Correct answer, player remains active. No state change needed.
+    // Correct answer - award points and keep player active
+    player.score += 100;
+    await player.save();
+    
     console.log(`Player ${username} answered correctly in game ${gameCode}, question ${game.currentQuestionIndex}`);
     return { status: 'active', message: "Answer submitted successfully." };
   } else {
@@ -83,7 +86,7 @@ async function handleAnswerSubmission(gameCode: string, username: string, answer
 
 export async function handle(request: Request) {
   try {
-    await dbConnect();
+    await connectToDatabase();
     const json = superjson.parse(await request.text());
     const { gameCode, username, answer } = schema.parse(json);
 

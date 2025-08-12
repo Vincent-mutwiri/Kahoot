@@ -12,6 +12,7 @@ const playerSchema = new mongoose.Schema({
     required: true 
   },
   balance: { type: Number, default: 0 },
+  score: { type: Number, default: 0 },
   eliminatedRound: { type: Number, default: null },
   joinedAt: { type: Date, default: Date.now }
 });

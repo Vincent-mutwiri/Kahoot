@@ -9,6 +9,7 @@ export interface FileDropzoneProps {
   maxFiles?: number;
   maxSize?: number; // in bytes
   onFilesSelected?: (files: File[]) => void;
+  onUploadComplete?: (fileUrl: string) => void;
   disabled?: boolean;
   icon?: React.ReactNode;
   title?: React.ReactNode;
@@ -21,6 +22,7 @@ export const FileDropzone: React.FC<FileDropzoneProps> = ({
   maxFiles = 1,
   maxSize,
   onFilesSelected,
+  onUploadComplete,
   disabled = false,
   icon = <Upload size={48} />,
   title = "Click to upload or drag and drop",
@@ -28,6 +30,7 @@ export const FileDropzone: React.FC<FileDropzoneProps> = ({
 }) => {
   const [isDragging, setIsDragging] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
   
   const handleDrag = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -81,30 +84,82 @@ export const FileDropzone: React.FC<FileDropzoneProps> = ({
     return files;
   }, [accept, maxFiles, maxSize]);
 
+  const uploadToS3 = useCallback(async (files: File[]) => {
+    const file = files[0];
+    setUploading(true);
+    
+    try {
+      const response = await fetch('/_api/upload/get-presigned-url', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          filename: file.name,
+          contentType: file.type,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Could not get pre-signed URL.');
+      }
+
+      const { url, key } = await response.json();
+
+      const uploadResponse = await fetch(url, {
+        method: 'PUT',
+        body: file,
+        headers: { 'Content-Type': file.type },
+      });
+
+      if (!uploadResponse.ok) {
+        throw new Error('Upload to S3 failed.');
+      }
+
+      const fileUrl = `https://vincent-bucket2025.s3.eu-north-1.amazonaws.com/${key}`;
+      
+      if (onUploadComplete) {
+        onUploadComplete(fileUrl);
+      }
+    } catch (error) {
+      console.error('Upload error:', error);
+      setError('Upload failed. Please try again.');
+    } finally {
+      setUploading(false);
+    }
+  }, [onUploadComplete]);
+
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
     
-    if (disabled) return;
+    if (disabled || uploading) return;
     
     setIsDragging(false);
     
     const files = validateFiles(e.dataTransfer.files);
-    if (files.length > 0 && onFilesSelected) {
-      onFilesSelected(files);
+    if (files.length > 0) {
+      if (onFilesSelected) {
+        onFilesSelected(files);
+      }
+      if (onUploadComplete) {
+        uploadToS3(files);
+      }
     }
-  }, [disabled, validateFiles, onFilesSelected]);
+  }, [disabled, uploading, validateFiles, onFilesSelected, uploadToS3]);
 
   const handleFileInput = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    if (disabled) return;
+    if (disabled || uploading) return;
     
     const files = validateFiles(e.target.files);
-    if (files.length > 0 && onFilesSelected) {
-      onFilesSelected(files);
+    if (files.length > 0) {
+      if (onFilesSelected) {
+        onFilesSelected(files);
+      }
+      if (onUploadComplete) {
+        uploadToS3(files);
+      }
     }
-    // Reset input value to allow selecting the same file again
     e.target.value = '';
-  }, [disabled, validateFiles, onFilesSelected]);
+  }, [disabled, uploading, validateFiles, onFilesSelected, uploadToS3]);
 
   const clearError = useCallback(() => {
     setError(null);
@@ -123,7 +178,7 @@ export const FileDropzone: React.FC<FileDropzoneProps> = ({
         className={`
           ${styles.dropzone}
           ${isDragging ? styles.dragging : ''}
-          ${disabled ? styles.disabled : ''}
+          ${disabled || uploading ? styles.disabled : ''}
         `}
         onDragEnter={handleDrag}
         onDragLeave={handleDrag}
@@ -135,12 +190,12 @@ export const FileDropzone: React.FC<FileDropzoneProps> = ({
           onChange={handleFileInput}
           accept={accept}
           multiple={maxFiles > 1}
-          disabled={disabled}
+          disabled={disabled || uploading}
           aria-label="File upload"
         />
         
         <span className={styles.icon}>{icon}</span>
-        <span className={styles.title}>{title}</span>
+        <span className={styles.title}>{uploading ? 'Uploading...' : title}</span>
         {(subtitle || defaultSubtitle) && (
           <span className={styles.subtitle}>{subtitle || defaultSubtitle}</span>
         )}

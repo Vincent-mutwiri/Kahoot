@@ -21,6 +21,22 @@ const GamePage: React.FC = () => {
   const [username, setUsername] = useState<string | null>(null);
   const [isVotingModalOpen, setIsVotingModalOpen] = useState(false);
   const [activeVotingRoundId, setActiveVotingRoundId] = useState<number | null>(null);
+
+  const voteForRedemption = async (targetPlayerId: string) => {
+    try {
+      await fetch('/_api/vote/redemption', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          gameCode,
+          voterUsername: username,
+          targetPlayerId
+        })
+      });
+    } catch (error) {
+      console.error('Failed to vote for redemption:', error);
+    }
+  };
   const hideMediaMutation = usePlayerHideMediaMutation();
 
   useEffect(() => {
@@ -153,32 +169,105 @@ const GamePage: React.FC = () => {
 
     const { game, player, players, currentQuestion, questionStartTimeMs } = data;
 
-    
+    // State machine based on gameState
+    switch (game.gameState || game.status) {
+      case 'lobby':
+        return <LobbyView game={game} players={players} />;
+        
+      case 'question':
+        if (currentQuestion) {
+          return <QuestionView 
+            game={game} 
+            player={player} 
+            players={players} 
+            currentQuestion={currentQuestion} 
+            questionStartTimeMs={questionStartTimeMs || null} 
+          />;
+        }
+        break;
+        
+      case 'elimination':
+        const eliminatedPlayers = players.filter(p => p.status === 'eliminated' && p.eliminatedRound === game.currentQuestionIndex);
+        return (
+          <div className={styles.sequenceView}>
+            {game.eliminationVideoUrl && (
+              <video src={game.eliminationVideoUrl} autoPlay className={styles.sequenceVideo} />
+            )}
+            <h2>Players Eliminated</h2>
+            <ul>
+              {eliminatedPlayers.map(p => <li key={p.id}>{p.username}</li>)}
+            </ul>
+          </div>
+        );
+        
+      case 'survivors':
+        const survivors = players.filter(p => p.status === 'active' || p.status === 'redeemed');
+        return (
+          <div className={styles.sequenceView}>
+            {game.survivorVideoUrl && (
+              <video src={game.survivorVideoUrl} autoPlay className={styles.sequenceVideo} />
+            )}
+            <h2>Survivors</h2>
+            <ul>
+              {survivors.map(p => <li key={p.id}>{p.username}</li>)}
+            </ul>
+          </div>
+        );
+        
+      case 'leaderboard':
+        const sortedPlayers = [...players].sort((a, b) => (b.score || 0) - (a.score || 0));
+        return (
+          <div className={styles.leaderboardView}>
+            <h2>Leaderboard</h2>
+            <ol>
+              {sortedPlayers.map(p => (
+                <li key={p.id} className={p.status === 'active' ? styles.survivor : ''}>
+                  {p.username} - {p.score || 0} points
+                </li>
+              ))}
+            </ol>
+          </div>
+        );
+        
+      case 'redemption':
+        const currentRoundEliminated = players.filter(p => p.status === 'eliminated' && p.eliminatedRound === game.currentQuestionIndex);
+        return (
+          <div className={styles.redemptionView}>
+            {game.redemptionVideoUrl && (
+              <video src={game.redemptionVideoUrl} autoPlay className={styles.sequenceVideo} />
+            )}
+            <h2>Redemption Vote</h2>
+            {player.status === 'active' ? (
+              <div>
+                <p>Vote to save one eliminated player:</p>
+                {currentRoundEliminated.map(p => (
+                  <button key={p.id} onClick={() => voteForRedemption(p.id)}>
+                    Save {p.username}
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <p>Waiting for survivors to vote...</p>
+            )}
+          </div>
+        );
+        
+      case 'round_results':
+        return (
+          <div className={styles.resultsView}>
+            <h2>Round Results</h2>
+            <p>Preparing next question...</p>
+          </div>
+        );
+    }
 
-    // Winner State
+    // Fallback states
     if (game.status === 'finished' && player.status === 'active') {
       return <WinnerView prize={game.currentPrizePot} />;
     }
 
-    // Eliminated State
     if (player.status === 'eliminated') {
       return <EliminatedView game={game} players={players} currentQuestion={currentQuestion} />;
-    }
-
-    // Lobby State
-    if (game.status === 'lobby') {
-      return <LobbyView game={game} players={players} />;
-    }
-
-    // Active Question State
-    if (game.status === 'active' && currentQuestion) {
-      return <QuestionView 
-        game={game} 
-        player={player} 
-        players={players} 
-        currentQuestion={currentQuestion} 
-        questionStartTimeMs={questionStartTimeMs || null} 
-      />;
     }
 
     // Fallback / Waiting for next question
